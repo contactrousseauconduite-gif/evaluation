@@ -1,7 +1,7 @@
 {
-  "name": "Évaluation de départ – Rousseau Conduite",
-  "short_name": "Évaluation",
-  "description": "Fiche d'évaluation de départ de Rousseau Conduite",
+  "name": "Rousseau Conduite – Évaluations",
+  "short_name": "Rousseau Conduite",
+  "description": "Évaluation de départ et examen blanc de Rousseau Conduite",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
@@ -10,8 +10,45 @@
   "background_color": "#EEF3F5",
   "theme_color": "#22416D",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Évaluation de départ",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Examen blanc",
+      "url": "./examen.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }
