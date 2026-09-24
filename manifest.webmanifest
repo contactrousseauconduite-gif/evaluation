@@ -1,7 +1,7 @@
 {
   "name": "Rousseau Conduite – Évaluations",
   "short_name": "Rousseau Conduite",
-  "description": "Évaluation de départ et examen blanc de Rousseau Conduite",
+  "description": "Évaluation de départ, examen blanc et dossiers élèves de Rousseau Conduite",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
@@ -43,6 +43,16 @@
     {
       "name": "Examen blanc",
       "url": "./examen.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Élèves",
+      "url": "./eleves.html",
       "icons": [
         {
           "src": "icon-192.png",

@@ -207,6 +207,15 @@ h2.band{margin:0;padding:12px 16px;background:var(--chip);font-size:1rem;display
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bk{background:#3A3113;color:#F7E3A6;border-color:#8A6D1F}:root:not([data-theme="light"]) .bk .btn.quiet{color:#F7E3A6}}
 :root[data-theme="dark"] .bk{background:#3A3113;color:#F7E3A6;border-color:#8A6D1F}:root[data-theme="dark"] .bk .btn.quiet{color:#F7E3A6}
 .src small{display:block;margin-top:4px}
+
+.pick{margin:0 0 14px;padding:0 0 14px;border-bottom:1px solid var(--line)}
+.pick.on{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--chip);border:0;border-radius:12px;padding:10px 12px}
+.pick-res{display:flex;flex-direction:column;gap:6px;margin-top:8px}.pick-res:empty{display:none}
+.pick-res button{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;cursor:pointer;min-height:44px}
+.pick-res small{color:var(--muted)}
+.pick-hint{font-size:.8rem;color:var(--muted);margin:6px 0 0}
+.linkbtn{background:none;border:0;color:var(--tealtext);font-weight:700;cursor:pointer;padding:6px 0;font-size:.9rem}
+input[type=search]{width:100%;max-width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:1rem;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -218,7 +227,7 @@ h2.band{margin:0;padding:12px 16px;background:var(--chip);font-size:1rem;display
     <button role="tab" id="tabHist" aria-selected="false">Historique</button>
   </div>
 </div>
-<nav class="apps"><a href="index.html">Évaluation de départ</a><a href="examen.html" aria-current="page">Examen blanc</a></nav>
+<nav class="apps"><a href="index.html">Évaluation</a><a href="examen.html" aria-current="page">Examen blanc</a><a href="eleves.html">Élèves</a></nav>
 </header>
 <main>
 <div id="bkBanner" class="bk" hidden><div class="bk-txt"><b>Pensez à sauvegarder vos fiches</b><span data-bk-txt></span></div>
@@ -227,32 +236,78 @@ h2.band{margin:0;padding:12px 16px;background:var(--chip);font-size:1rem;display
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* Rousseau Conduite : sauvegarde commune aux deux fiches */
+/* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
   const list=k=>{try{return JSON.parse(get(k))||[]}catch(e){return[]}};
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const iso=d=>{d=new Date(d);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
   const fr=ts=>{const[y,m,d]=iso(ts).split('-');return `${d}/${m}/${y}`};
   let toast=()=>{};
+
+  /* ---------- élèves ---------- */
+  const FIELDS=['nom','prenom','naissance','tel','adresse','cp','ville','niveau','profession','nationalite','boite'];
+  const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const keyOf=o=>norm(o.nom)+'|'+norm(o.prenom);
+  const full=e=>[e.prenom,e.nom].filter(Boolean).join(' ')||'Sans nom';
+  const eleves=()=>list(K.el);
+  const saveEleves=l=>set(K.el,JSON.stringify(l));
+  const eleve=id=>id?eleves().find(e=>e.id===id)||null:null;
+  const newId=()=>'el'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  function link(rec){
+    if(!rec.nom&&!rec.prenom)return rec.eleveId||null;
+    const l=eleves();let e=rec.eleveId&&l.find(x=>x.id===rec.eleveId);
+    if(!e)e=l.find(x=>keyOf(x)===keyOf(rec));
+    if(!e){e={id:newId(),createdAt:Date.now(),notes:''};l.push(e)}
+    FIELDS.forEach(f=>{if(rec[f]!=null&&rec[f]!=='')e[f]=rec[f]});
+    e.updatedAt=Date.now();saveEleves(l);return e.id}
+  function addEleve(o){const l=eleves(),e=Object.assign({id:newId(),createdAt:Date.now(),updatedAt:Date.now(),notes:''},o);l.push(e);saveEleves(l);return e}
+  function updateEleve(id,patch){const l=eleves(),e=l.find(x=>x.id===id);if(!e)return;Object.assign(e,patch,{updatedAt:Date.now()});saveEleves(l);
+    /* garder les noms des fiches à jour */
+    [K.ev,K.ex].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
+  function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
+    [K.ev,K.ex].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+  function syncAll(){[K.ev,K.ex].forEach(k=>{const recs=list(k);let ch=false;
+    [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
+    if(ch)set(k,JSON.stringify(recs))})}
+  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id)});
+
+  /* sélecteur d'élève dans les fiches */
+  let onPick=null,onClear=null;
+  function pickerHTML(id){const e=eleve(id);
+    if(e)return `<div class="pick on"><span>Dossier de <b>${esc(full(e))}</b></span><button type="button" class="linkbtn" data-eleve-clear>Changer d’élève</button></div>`;
+    if(!eleves().length)return `<p class="pick-hint">Nouvel élève : son dossier sera créé à l’enregistrement.</p>`;
+    return `<div class="pick"><label class="f">Élève déjà suivi ?<input type="search" data-eleve-search placeholder="Rechercher par nom ou prénom" autocomplete="off"></label>
+      <div class="pick-res" data-eleve-results></div><p class="pick-hint">Nouvel élève ? Remplissez la fiche, son dossier sera créé à l’enregistrement.</p></div>`}
+  function results(q){const n=norm(q);let l=eleves();
+    l=n?l.filter(e=>norm(full(e)+' '+full({prenom:e.nom,nom:e.prenom})).includes(n)):l.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    return l.slice(0,6).map(e=>`<button type="button" data-eleve-pick="${esc(e.id)}"><b>${esc(full(e))}</b>${e.tel?`<small>${esc(e.tel)}</small>`:''}</button>`).join('')||'<p class="pick-hint">Aucun élève trouvé.</p>'}
+  const showRes=inp=>{const box=inp.closest('.pick').querySelector('[data-eleve-results]');box.innerHTML=results(inp.value)};
+  document.addEventListener('input',e=>{if(e.target.matches('[data-eleve-search]'))showRes(e.target)});
+  document.addEventListener('focusin',e=>{if(e.target.matches('[data-eleve-search]'))showRes(e.target)});
+
+  /* ---------- sauvegarde ---------- */
   function saveFile(name,data){const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000)}
   function status(){const n=list(K.ev).length+list(K.ex).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  function backup(){const ev=list(K.ev),ex=list(K.ex);
-    if(!ev.length&&!ex.length){toast('Aucune fiche à sauvegarder');return}
-    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:3,date:Date.now(),evaluations:ev,examens:ex}));
+  function backup(){const ev=list(K.ev),ex=list(K.ex),el=eleves();
+    if(!ev.length&&!ex.length&&!el.length){toast('Aucune fiche à sauvegarder');return}
+    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:4,date:Date.now(),eleves:el,evaluations:ev,examens:ex}));
     set(K.last,String(Date.now()));check();
-    toast(`Sauvegarde téléchargée : ${ev.length} évaluation${ev.length>1?'s':''}, ${ex.length} examen${ex.length>1?'s':''} blanc${ex.length>1?'s':''}`)}
-  function mergeInto(k,items,ver){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
-    (items||[]).filter(x=>x&&x.id&&x.v===ver).forEach(x=>{n++;if(!byId[x.id]||(x.updatedAt||0)>(byId[x.id].updatedAt||0))byId[x.id]=x});
+    toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length} fiche${ev.length+ex.length>1?'s':''}`)}
+  function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
+    (items||[]).filter(x=>x&&x.id&&ok(x)).forEach(x=>{n++;if(!byId[x.id]||(x.updatedAt||0)>(byId[x.id].updatedAt||0))byId[x.id]=x});
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
-    try{const d=JSON.parse(await file.text());const ev=mergeInto(K.ev,d.evaluations,2),ex=mergeInto(K.ex,d.examens,1);
-      if(!ev&&!ex)throw 0;toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}`);check();return true}
+    try{const d=JSON.parse(await file.text());
+      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1);
+      if(!el&&!ev&&!ex)throw 0;syncAll();
+      toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
     const due=s.n>0&&(!s.last||s.days>=LIMIT)&&Date.now()>(+get(K.snooze)||0);
@@ -262,8 +317,13 @@ window.RC=(function(){
   document.addEventListener('click',e=>{
     if(e.target.closest('[data-bk-now]'))backup();
     if(e.target.closest('[data-bk-later]')){set(K.snooze,String(Date.now()+DAY));check()}
+    const p=e.target.closest('[data-eleve-pick]');if(p&&onPick){const x=eleve(p.dataset.elevePick);if(x)onPick(x)}
+    if(e.target.closest('[data-eleve-clear]')&&onClear)onClear();
   });
-  return{backup,restore,check,lastText,setToast:f=>{toast=f}};
+  syncAll();
+  return{backup,restore,check,lastText,setToast:f=>{toast=f},
+    eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
+    setPicker:(p,c)=>{onPick=p;onClear=c}};
 })();
 </script>
 <script>
@@ -368,7 +428,7 @@ function itemRow(it){
 function renderForm(){
   $('#viewForm').innerHTML=`
   <div class="top2">
-  <section class="block"><h2 class="pill">Informations</h2><div class="grid">
+  <section class="block"><h2 class="pill">Informations</h2>${RC.pickerHTML(S.eleveId)}<div class="grid">
     ${inp('nom','Nom','text','','autocomplete="off"')}${inp('prenom','Prénom','text','','autocomplete="off"')}
     ${inp('date','Date','date')}${inp('numero','Examen blanc n°','number','','inputmode="numeric" min="1"')}
     ${inp('heures','Heures de conduite effectuées','number','','inputmode="numeric" min="0"')}${inp('lieu','Lieu ou parcours')}
@@ -513,8 +573,8 @@ const store={list(){try{return JSON.parse(lsGet(LS_HIST))||[]}catch(e){return[]}
 function isSaved(){const h=history.find(x=>x.id===S.id);return h&&h.updatedAt===S.updatedAt}
 function saveCurrent(){
   if(!S.prenom&&!S.nom){toast('Ajoutez au moins le nom de l’élève');document.querySelector('[data-in="nom"]').focus();return}
-  const c=compute();S.result={total:c.total,status:c.status,complete:c.complete};S.updatedAt=Date.now();lsSet(LS_DRAFT,JSON.stringify(S));
-  try{store.save(JSON.parse(JSON.stringify(S)));toast('Examen blanc enregistré');RC.check()}catch(e){toast('Stockage plein : supprimez d’anciens examens')}
+  const c=compute();S.result={total:c.total,status:c.status,complete:c.complete};S.eleveId=RC.link(S);S.updatedAt=Date.now();lsSet(LS_DRAFT,JSON.stringify(S));
+  try{store.save(JSON.parse(JSON.stringify(S)));toast('Examen blanc enregistré dans le dossier de '+RC.full(S));RC.check();renderForm()}catch(e){toast('Stockage plein : supprimez d’anciens examens')}
 }
 
 /* ---------- historique ---------- */
@@ -632,6 +692,21 @@ let tT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on
 
 /* ---------- démarrage ---------- */
 RC.setToast(toast);history=store.list();renderForm();renderHist();RC.check();
+/* ---------- choix d’un élève déjà suivi ---------- */
+const PICK_FIELDS=['nom','prenom','tel','boite'];
+function fillFrom(e){PICK_FIELDS.forEach(f=>{if(e[f]!=null&&e[f]!=='')S[f]=e[f]});S.eleveId=e.id}
+RC.setPicker(e=>{fillFrom(e);touch();renderForm();toast('Fiche remplie pour '+RC.full(e))},
+  ()=>{PICK_FIELDS.forEach(f=>{if(f!=='boite')S[f]=''});S.eleveId=null;touch();renderForm()});
+
+/* ---------- ouverture depuis un dossier élève ---------- */
+(function(){const qp=new URLSearchParams(location.search);if(!qp.toString())return;
+  const o=qp.get('open'),el=qp.get('eleve');
+  if(o){const ev=history.find(x=>x.id===o);if(ev){S=normalize(JSON.parse(JSON.stringify(ev)));lsSet(LS_DRAFT,JSON.stringify(S));renderForm()}}
+  else if(el){const e=RC.eleve(el);if(e){
+    const dirty=(S.nom||S.prenom)&&!isSaved()&&S.eleveId!==e.id;
+    if(!dirty||confirm('La fiche en cours n’est pas enregistrée. La remplacer par une nouvelle fiche pour '+RC.full(e)+' ?')){S=blank();fillFrom(e);lsSet(LS_DRAFT,JSON.stringify(S));renderForm()}}}
+  window.history.replaceState(null,'',location.pathname);window.scrollTo(0,0)})();
+
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 })();

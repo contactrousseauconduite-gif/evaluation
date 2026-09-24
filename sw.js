@@ -1,5 +1,5 @@
-const CACHE = 'rc-eval-v3';
-const SHELL = ['./', './index.html', './examen.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
+const CACHE = 'rc-eval-v4';
+const SHELL = ['./', './index.html', './examen.html', './eleves.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -18,10 +18,9 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(res => {
-      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req.url.split('?')[0], copy)); }
       return res;
-    }).catch(() => caches.match(req, { ignoreSearch: true })
-      .then(hit => hit || caches.match(new URL(req.url).pathname.endsWith('examen.html') ? './examen.html' : './index.html'))));
+    }).catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('./index.html'))));
     return;
   }
   e.respondWith(caches.match(req).then(hit => {
