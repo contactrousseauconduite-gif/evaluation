@@ -32,7 +32,7 @@
   "shortcuts": [
     {
       "name": "Évaluation de départ",
-      "url": "./index.html",
+      "url": "./evaluation.html",
       "icons": [
         {
           "src": "icon-192.png",
