@@ -274,6 +274,12 @@ details.more[open]{padding-bottom:12px}
 }
 /* fenêtre « quitter la fiche » */
 .lv-in .btn{width:100%}
+
+.shm-att{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--chip);border:0;border-radius:12px;padding:10px 12px;cursor:pointer;color:var(--ink)}
+.shm-att .box{flex:none;width:26px;height:26px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;color:#fff;font-weight:700;background:var(--surface)}
+.shm-att[aria-pressed="true"] .box{background:var(--navy);border-color:var(--navy)}.shm-att[aria-pressed="true"] .box::before{content:"✓"}
+.shm-att span:last-child{display:flex;flex-direction:column}.shm-att small{color:var(--muted);font-size:.8rem}
+.shm-act .btn:disabled{opacity:.7;cursor:wait}
 </style>
 </head>
 <body>
@@ -403,6 +409,7 @@ window.RC=(function(){
       <div class="shm-fields grid"></div>
       <div class="seg shm-tu"><button type="button" data-shm-tu="tu">Tutoiement</button><button type="button" data-shm-tu="vous">Vouvoiement</button></div>
       <textarea class="shm-text" rows="11"></textarea><p class="shm-note">Vous pouvez modifier le texte avant de l’envoyer.</p>
+      ${o.attach?`<button type="button" class="shm-att" data-shm-att aria-pressed="true"><span class="box"></span><span><b>Joindre la fiche en PDF</b><small>${esc(o.attach.label)}</small></span></button>`:''}
       <div class="shm-act"><button type="button" class="btn primary" data-shm-share>Partager</button>${o.tel?`<a class="btn" data-shm-sms href="#">Envoyer par SMS</a>`:''}<button type="button" class="btn" data-shm-copy>Copier</button></div></div>`;
     document.body.appendChild(el);shm=el;document.documentElement.style.overflow='hidden';
     const ta=el.querySelector('.shm-text');
@@ -416,7 +423,15 @@ window.RC=(function(){
       if(b.dataset.shmClose!=null)closeShare();
       else if(b.dataset.shmTu){if(edited&&!confirm('Refaire le message ? Vos modifications seront perdues.'))return;tu=b.dataset.shmTu==='tu';set('rc:tu',tu?'tu':'vous');paint()}
       else if(b.dataset.shmTpl){if(edited&&!confirm('Changer de message ? Vos modifications seront perdues.'))return;tpl=o.templates.find(t=>t.id===b.dataset.shmTpl);el.querySelectorAll('[data-shm-tpl]').forEach(x=>x.setAttribute('aria-pressed',x===b));paint()}
-      else if(b.dataset.shmShare!=null)shareText(o.title,ta.value);
+      else if(b.dataset.shmAtt!=null)b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');
+      else if(b.dataset.shmShare!=null){const att=el.querySelector('[data-shm-att]');
+        if(o.attach&&att&&att.getAttribute('aria-pressed')==='true'){b.disabled=true;const lab=b.textContent;b.textContent='Préparation du PDF…';
+          try{const file=await o.attach.make();
+            if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:o.title,text:ta.value})}catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
+            else{downloadFile(file);await copyText(ta.value);toast('PDF téléchargé et message copié : joignez-le à votre message')}}
+          catch(e){toast('Impossible de créer le PDF');shareText(o.title,ta.value)}
+          finally{b.disabled=false;b.textContent=lab}}
+        else shareText(o.title,ta.value)}
       else if(b.dataset.shmCopy!=null)toast(await copyText(ta.value)?'Message copié':'Copie impossible ici');
     });
     el.addEventListener('keydown',e=>{if(e.key==='Escape')closeShare()});
@@ -426,10 +441,43 @@ window.RC=(function(){
   const DOCS=[{url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir'},
     {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses'},
     {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à remettre à l’élève lors de l’évaluation de départ'}];
+
+  /* ---------- fiche en PDF (sans bibliothèque externe) ---------- */
+  const A4W=794,PAD=38,INNER=A4W-2*PAD;
+  async function measure(html){return new Promise(res=>{const f=document.createElement('iframe');
+    f.style.cssText=`position:fixed;left:-10000px;top:0;width:${INNER}px;height:10px;border:0;visibility:hidden`;
+    f.srcdoc=html.replace('</head>',`<style>html,body{margin:0!important;padding:0!important;max-width:none!important;width:${INNER}px}</style></head>`);
+    f.onload=()=>{setTimeout(()=>{const h=f.contentDocument.documentElement.scrollHeight;f.remove();res(h)},80)};document.body.appendChild(f)})}
+  async function ficheImage(html,scale){
+    const css=(html.match(/<style>([\s\S]*?)<\/style>/)||['',''])[1].replace(/@page[^{]*\{[^}]*\}/g,'').replace(/@media print\{[^}]*\{[^}]*\}\}/g,'').replace(/(^|[}\s])body\{/g,'$1.fx{');
+    const body=(html.match(/<body>([\s\S]*?)<\/body>/)||['',''])[1].replace(/<script[\s\S]*?<\/script>/g,'');
+    const h=Math.max(1123,Math.ceil((await measure(html))+2*PAD));
+    const wrap=document.createElement('div');wrap.setAttribute('xmlns','http://www.w3.org/1999/xhtml');
+    wrap.innerHTML=`<style>${css}.fx{margin:0!important;padding:0!important;max-width:none!important;width:${INNER}px;background:#fff}</style><div class="fx">${body}</div>`;
+    const xhtml=new XMLSerializer().serializeToString(wrap);
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${A4W}" height="${h}"><rect width="100%" height="100%" fill="#fff"/><foreignObject x="${PAD}" y="${PAD}" width="${INNER}" height="${h-2*PAD}">${xhtml}</foreignObject></svg>`;
+    const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await img.decode();
+    const c=document.createElement('canvas');c.width=A4W*scale;c.height=h*scale;const x=c.getContext('2d');
+    x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.scale(scale,scale);x.drawImage(img,0,0);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.92));return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
+  function jpegPdf(jpg){const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+    const push=d=>{const b=typeof d==='string'?enc.encode(d):d;parts.push(b);len+=b.length};
+    const wPt=595.28,hPt=+(wPt*jpg.h/jpg.w).toFixed(2),content=`q ${wPt} 0 0 ${hPt} 0 0 cm /Im0 Do Q`;
+    push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+    const obj=(n,s)=>{offs[n]=len;push(`${n} 0 obj\n${s}\nendobj\n`)};
+    obj(1,'<< /Type /Catalog /Pages 2 0 R >>');obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+    obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${wPt} ${hPt}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+    offs[4]=len;push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${jpg.w} /Height ${jpg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.bytes.length} >>\nstream\n`);push(jpg.bytes);push('\nendstream\nendobj\n');
+    obj(5,`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    const xref=len;push(`xref\n0 6\n0000000000 65535 f \n${[1,2,3,4,5].map(n=>String(offs[n]).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+    const out=new Uint8Array(len);let o=0;parts.forEach(p=>{out.set(p,o);o+=p.length});return out}
+  async function fichePdf(html,name){const jpg=await ficheImage(html,2);return new File([jpegPdf(jpg)],name,{type:'application/pdf'})}
+  const fileName=(kind,who,date)=>`${kind}-${String(who||'eleve').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve'}-${date||iso(Date.now())}.pdf`;
+  function downloadFile(file){const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
   syncAll();
   return{backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
-    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
+    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
 <script>
@@ -602,7 +650,7 @@ function renderForm(){
 
   <div class="actions">
     <button type="button" class="btn primary" id="save">Enregistrer l’examen blanc</button>
-    <button type="button" class="btn" id="export">Télécharger la fiche</button>
+    <button type="button" class="btn" id="export">Télécharger en PDF</button>
     <button type="button" class="btn" id="print">Imprimer ou PDF</button>
     <button type="button" class="btn" id="copy">Partager le bilan</button>
     <button type="button" class="btn quiet" id="new">Nouvel examen blanc</button>
@@ -657,7 +705,7 @@ $('#viewForm').addEventListener('click',e=>{
   if(b.dataset.clear){S.sig[b.dataset.clear]=null;document.querySelector(`[data-pad="${b.dataset.clear}"]`)._redraw();touch();return}
   switch(b.id){
     case 'save':saveCurrent();break;
-    case 'export':saveFile(`examen-blanc-${slug()}-${S.date||todayISO()}.html`,ficheHTML(false),'text/html');toast('Fiche téléchargée');break;
+    case 'export':{const lab=b.textContent;b.disabled=true;b.textContent='Préparation du PDF…';RC.fichePdf(ficheHTML(false),RC.fileName('examen-blanc',nomComplet(),S.date)).then(f=>{RC.downloadFile(f);toast('Fiche PDF téléchargée')}).catch(()=>toast('Impossible de créer le PDF')).finally(()=>{b.disabled=false;b.textContent=lab});break}
     case 'print':printFiche();break;
     case 'copy':shareBilan();break;
     case 'new':{const c=compute();
@@ -733,7 +781,7 @@ function summary(){const c=compute();
 Résultat : ${fmt(c.total)} / 31, ${LABEL[c.status].toLowerCase()}${c.complete||c.status==='elim'||c.status==='nonterm'?'':' (provisoire)'}${S.elim.on&&elimTxt()?'\nErreur éliminatoire : '+elimTxt():''}
 Manœuvres : ${manTxt('man1')} ; ${manTxt('man2')}${S.forts?'\nObservations : '+S.forts:''}${S.travail?'\nAxes de travail : '+S.travail:''}${S.formateur?'\nEnseignant : '+S.formateur:''}`}
 function shareBilan(){const T=RC.T,el=RC.eleve(S.eleveId);
-  RC.openShare({title:'Bilan de l’examen blanc',tel:(el&&el.tel)||S.tel||'',templates:[{id:'bilan',label:'Bilan',build:tu=>{
+  RC.openShare({title:'Bilan de l’examen blanc',tel:(el&&el.tel)||S.tel||'',attach:{label:'Examen blanc de '+nomComplet(),make:()=>RC.fichePdf(ficheHTML(false),RC.fileName('examen-blanc',nomComplet(),S.date))},templates:[{id:'bilan',label:'Bilan',build:tu=>{
     const c=compute(),p=S.prenom,items=BLOCKS.flatMap(b=>b.items),low=s=>s.charAt(0).toLowerCase()+s.slice(1);
     const forts=items.filter(it=>{const v=itemScore(it);return v!=null&&v!=='E'&&v>=it.max}).map(it=>low(it.l)).slice(0,4);
     const trav=items.filter(it=>{const v=itemScore(it);return it.kind!=='verif'&&v!=null&&(v==='E'||v<=1)}).map(it=>low(it.l)).slice(0,4);
