@@ -611,7 +611,7 @@ $('#view').addEventListener('input',e=>{
 
 render();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{if(navigator.onLine&&r.active)r.active.postMessage('fonts')}).catch(()=>{}));
 })();
 </script>
 </body>

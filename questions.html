@@ -505,7 +505,7 @@ $('#list').addEventListener('click',e=>{
 $('#mode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',(x.dataset.m==='show')===show));
 const qp=new URLSearchParams(location.search);if(qp.get('n')){$('#q').value=qp.get('n')}
 render();RC.check();
-if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{if(navigator.onLine&&r.active)r.active.postMessage('fonts')}).catch(()=>{}));
 })();
 </script>
 </body>
