@@ -739,18 +739,20 @@ function ficheHTML(autoPrint){
   const sig=k=>S.sig[k]?`<img src="${S.sig[k]}" alt="">`:'';
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fiche d’évaluation de départ, ${esc(nomComplet())}</title><style>
-body{font-family:Arial,Helvetica,sans-serif;color:#1C2B40;max-width:800px;margin:20px auto;padding:0 16px;font-size:12.5px}
-header{display:flex;align-items:center;gap:14px;border-bottom:3px solid;border-image:linear-gradient(90deg,#22416D,#2A9DAE,#8CC89F) 1;padding-bottom:10px;margin-bottom:10px}
-header img{width:70px;height:70px}header h1{margin:0;font-size:20px;color:#22416D}header p{margin:2px 0 0;color:#23798A;font-weight:bold}
-h3{color:#22416D;font-size:13px;margin:0 0 6px}.sec{border-top:1px solid #C9D5DC;padding:8px 0}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px 12px}.fld span{color:#5A6B7C}
+@page{size:A4;margin:9mm 10mm}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:Arial,Helvetica,sans-serif;color:#1C2B40;max-width:800px;margin:16px auto;padding:0 16px;font-size:11.3px;line-height:1.3}
+header{display:flex;align-items:center;gap:14px;border-bottom:3px solid;border-image:linear-gradient(90deg,#22416D,#2A9DAE,#8CC89F) 1;padding-bottom:7px;margin-bottom:4px}
+header img{width:56px;height:56px}header h1{margin:0;font-size:18px;color:#22416D}header p{margin:2px 0 0;color:#23798A;font-weight:bold}
+h3{color:#22416D;font-size:12px;margin:0 0 4px}.sec{border-top:1px solid #C9D5DC;padding:5px 0;break-inside:avoid}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px 12px}.fld span{color:#5A6B7C}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}.o{display:inline-block;margin-right:12px}
-.cols{display:grid;grid-template-columns:repeat(5,auto);gap:4px 14px}.cols div b{display:block;color:#5A6B7C;font-weight:normal;margin-bottom:2px}
-table{border-collapse:collapse;width:100%}td,th{padding:2px 4px;text-align:left}.c{text-align:center;width:28px}
-.res{display:flex;gap:10px;align-items:center}.res .bx{border:1.5px solid #22416D;padding:4px 14px;font-weight:bold;min-width:40px;text-align:center}
-.boxes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}.boxes div{border:1px solid #9AA9B6;height:95px;padding:4px;color:#5A6B7C;font-size:11px;display:flex;flex-direction:column}
-.boxes img{flex:1;min-height:0;object-fit:contain}.fine{font-size:10.5px;font-style:italic;color:#5A6B7C}
-@media print{body{margin:0}}</style>${autoPrint?'<script>addEventListener("load",()=>setTimeout(()=>print(),300))<\/script>':''}</head><body>
+.cols{display:grid;grid-template-columns:repeat(5,auto);gap:2px 14px;line-height:1.35}.cols div b{display:block;color:#5A6B7C;font-weight:normal;margin-bottom:2px}
+table{border-collapse:collapse;width:100%}td,th{padding:1px 4px;text-align:left}.c{text-align:center;width:28px}
+.res{display:flex;gap:10px;align-items:center}.res .bx{border:1.5px solid #22416D;padding:2px 14px;font-weight:bold;min-width:40px;text-align:center}
+.boxes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px;break-inside:avoid}.boxes div{border:1px solid #9AA9B6;border-radius:6px;height:78px;padding:4px;color:#5A6B7C;font-size:10px;display:flex;flex-direction:column}
+.boxes img{flex:1;min-height:0;min-width:0;width:100%;object-fit:contain}.fine{font-size:10.5px;font-style:italic;color:#5A6B7C}
+@media print{body{margin:0;padding:0;max-width:none}}</style>${autoPrint?'<script>addEventListener("load",()=>setTimeout(()=>print(),300))<\/script>':''}</head><body>
 <header><img src="${LOGO}" alt=""><div><h1>Fiche d’évaluation de départ</h1><p>Rousseau Conduite</p></div></header>
 <div class="sec"><h3>1. Renseignements d’ordre général</h3><div class="g3">
 ${f('Nom',S.nom)}${f('Prénom',S.prenom)}${f('Date de naissance',frDate(S.naissance))}
@@ -771,13 +773,14 @@ ${fsbTable(FSB.hab)}${fsbTable(FSB.comp)}
 ${fsbTable(FSB.perc,`<tr><td>Regard</td><td colspan="3">${['B','F1','F2','F3'].map(x=>`${ck(S.regard===x)} ${x}`).join('&nbsp; ')}</td></tr>`)}${fsbTable(FSB.emo)}</div>
 <div class="sec"><h3>9. Résultat de l’évaluation</h3><div class="res">Positifs <span class="bx">${c.pos}</span> − Négatifs <span class="bx">${c.neg}</span> = Résultat final <span class="bx">${c.res>0?'+':''}${c.res}</span> <span>(résultat ${c.cat})</span></div></div>
 <div class="sec"><h3>10. Proposition : volume de formation prévisionnel</h3><div class="two">
-<div>Théorie : <b>${esc(S.theorie||'–')} h</b><br>Pratique : <b>${h!=null?h:'–'} h</b><p class="fine">Minimum de 25 h de pratique appliqué par Rousseau Conduite.</p>
+<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b><p class="fine">Minimum de 25 h de pratique appliqué par Rousseau Conduite.</p>
 Formateur : <b>${esc(S.formateur)}</b><br>N° d’autorisation : <b>${esc(S.autorisation)}</b></div>
 <div>Date : <b>${esc(frDate(S.date))}</b><br>Proposition acceptée : ${ck(S.acceptee==='Oui')} Oui &nbsp; ${ck(S.acceptee==='Non')} Non<br>
-Proposition retenue : théorie <b>${esc(r.t||'–')} h</b>, pratique <b>${esc(r.p??'–')} h</b></div></div>
+Proposition retenue : théorie <b>${r.t?esc(r.t)+' h':'–'}</b>, pratique <b>${r.p!=null&&r.p!==''?esc(r.p)+' h':'–'}</b></div></div>
 <div class="boxes"><div>Cachet<img src="${LOGO}" alt=""></div><div>Signature formateur${sig('formateur')}</div><div>Signature élève${sig('eleve')}</div></div>
 ${minor()||S.sig.parents?`<div class="boxes"><div></div><div></div><div>Signature parents (pour mineurs)${sig('parents')}</div></div>`:''}
 </div></body></html>`}
+window.__fiche=()=>ficheHTML(false);
 async function exportFiche(){if(!downloads)return;
   const slug=nomComplet().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve';
   try{await downloads.save({filename:`evaluation-${slug}-${S.date||todayISO()}.html`,data:ficheHTML()});toast('Fiche téléchargée')}

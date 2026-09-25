@@ -767,32 +767,34 @@ function ficheHTML(autoPrint){
   const sig=k=>S.sig[k]?`<img src="${S.sig[k]}" alt="">`:'';
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Examen blanc, ${esc(nomComplet())}</title><style>
-@page{size:A4;margin:10mm}
-body{font-family:Arial,Helvetica,sans-serif;color:#1C2B40;max-width:800px;margin:16px auto;padding:0 14px;font-size:11.5px}
-header{display:flex;align-items:center;gap:14px;border-bottom:3px solid;border-image:linear-gradient(90deg,#22416D,#2A9DAE,#8CC89F) 1;padding-bottom:8px;margin-bottom:10px}
-header img{width:62px;height:62px}header h1{margin:0;font-size:22px;color:#22416D}header p{margin:2px 0 0;color:#23798A;font-weight:bold}
-.two{display:grid;grid-template-columns:1.25fr 1fr;gap:10px}
-.box{border:1px solid #D2DDE3;border-radius:12px;padding:8px 12px;margin-bottom:10px;position:relative}
-.box h2{display:inline-block;margin:-18px 0 4px -4px;background:#E2EBEF;border-radius:999px;padding:3px 12px;font-size:12px;color:#22416D}
-.box ul{margin:2px 0;padding-left:16px}.box li{margin:1px 0}.min{color:#3E9A62;font-size:10.5px;margin:4px 0 0}
-.info div{margin:3px 0}.info b{display:inline-block;min-width:88px}
-.resu div{margin:4px 0;font-weight:bold;font-size:13px}.resu .f{color:#3E9A62}.resu .i{color:#D6424A}
+@page{size:A4;margin:8mm 9mm}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:Arial,Helvetica,sans-serif;color:#1C2B40;max-width:800px;margin:16px auto;padding:0 14px;font-size:10.4px;line-height:1.28}
+header{display:flex;align-items:center;gap:14px;border-bottom:3px solid;border-image:linear-gradient(90deg,#22416D,#2A9DAE,#8CC89F) 1;padding-bottom:6px;margin-bottom:12px}
+header img{width:50px;height:50px}header h1{margin:0;font-size:18px;color:#22416D}header p{margin:2px 0 0;color:#23798A;font-weight:bold}
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:8px}
+.box{border:1px solid #D2DDE3;border-radius:10px;padding:6px 10px;margin-bottom:10px;position:relative;break-inside:avoid}
+.box h2{display:inline-block;margin:-15px 0 2px -4px;background:#E2EBEF;border-radius:999px;padding:2px 10px;font-size:11px;color:#22416D}
+.box ul{margin:1px 0;padding-left:14px}.box li{margin:0}.min{color:#3E9A62;font-size:9.5px;margin:2px 0 0}
+.info div{margin:1px 0}.info b{display:inline-block;min-width:88px}
+.resu div{margin:2px 0;font-weight:bold;font-size:12px}.resu .f{color:#3E9A62}.resu .i{color:#D6424A}
 table{border-collapse:collapse;width:100%}
 .grid{border:2px solid #1C2B40;border-radius:12px;overflow:hidden;border-collapse:separate;border-spacing:0}
-.grid th{background:#fff;padding:5px;font-size:12px}.grid td{border-top:1px solid #1C2B40;padding:4px 6px}
+.grid th{background:#fff;padding:3px;font-size:11px}.grid td{border-top:1px solid #1C2B40;padding:2px 6px}
 .grid td+td,.grid th+th{border-left:1px solid #1C2B40}
 .grid th.cE,.grid td.cE{background:#E5484D}.grid th.c0,.grid td.c0{background:#F2A33A}.grid th.c1,.grid td.c1{background:#F8CB94}
 .grid th.c2,.grid td.c2{background:#FCE3A0}.grid th.c3,.grid td.c3{background:#5DAE5A}
-.grid td.lv{width:34px;text-align:center;font-weight:bold;font-size:14px;opacity:.55}.grid td.lv.on{opacity:1;box-shadow:inset 0 0 0 3px #1C2B40}
+.grid td.lv{width:30px;text-align:center;font-weight:bold;font-size:12px;opacity:.55}.grid td.lv.on{opacity:1;box-shadow:inset 0 0 0 3px #1C2B40}
 .grid td.na{background:#EEF1F3!important;opacity:1}
-.grid tr.band td{background:#E2EBEF;text-align:center;font-size:13px;font-weight:bold;color:#22416D}
+.grid tr.band td{background:#E2EBEF;text-align:center;font-size:11.5px;font-weight:bold;color:#22416D}
 .grid td.nt{width:48px;text-align:right;font-weight:bold}.grid td.nt small{font-weight:normal;color:#5A6B7C}
-.tot{display:flex;justify-content:flex-end;gap:10px;align-items:center;margin:8px 0}
-.tot span{border:2px solid #1C2B40;border-radius:10px;padding:5px 14px;font-weight:bold;font-size:15px}
-.cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.legend li{list-style:none;margin:2px 0}.legend{padding-left:0}.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-2px}
-.sigs{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sigs div{border:1px solid #9AA9B6;border-radius:8px;height:70px;padding:4px;color:#5A6B7C;font-size:10.5px;display:flex;flex-direction:column}
-.sigs img{flex:1;min-height:0;object-fit:contain}@media print{body{margin:0}}</style>
+.tot{display:flex;justify-content:flex-end;gap:10px;align-items:center;margin:6px 0 12px}
+.tot span{border:2px solid #1C2B40;border-radius:10px;padding:3px 12px;font-weight:bold;font-size:13px}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.legend li{list-style:none;margin:0;font-size:9.4px}
+.leg1{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.4px;color:#33475C;margin:0 0 8px}.leg1 .dot{width:9px;height:9px;margin-right:4px}.legend{padding-left:0}.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-2px}
+.sigs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;break-inside:avoid}.sigs div{border:1px solid #9AA9B6;border-radius:8px;height:62px;padding:4px;color:#5A6B7C;font-size:10.5px;display:flex;flex-direction:column}
+.sigs img{flex:1;min-height:0;min-width:0;width:100%;object-fit:contain}@media print{body{margin:0;padding:0;max-width:none}}</style>
 ${autoPrint?'<script>addEventListener("load",()=>setTimeout(()=>print(),300))<\/script>':''}</head><body>
 <header><img src="${LOGO}" alt=""><div><h1>Examen blanc de la conduite</h1><p>Rousseau Conduite</p></div></header>
 <div class="two">
@@ -811,10 +813,11 @@ ${autoRows.replace(/<tr><td class="lbl">(.*?)<\/td>(<td class="lv c0.*?<\/td>)(<
 <tr><td class="lbl" colspan="6">Courtoisie &nbsp; ${ck(S.bonus.courtoisie)}</td><td class="nt">${S.bonus.courtoisie?1:0}<small>/1</small></td></tr>
 </table>
 <div class="tot">Sous-totaux : véhicule ${fmt(c.sub.veh.s)}/8, route ${fmt(c.sub.route.s)}/9, partage ${fmt(c.sub.partage.s)}/9, autonomie ${fmt(c.sub.auto.s)}/3, bonus ${c.sub.bonus.s}/2 <span>Total général : ${fmt(c.total)} / 31</span></div>
-${(()=>{const q=serieOf(S.serie);if(!q)return '';const ok=k=>S.verif[k]?'✓':'✗';
-  return `<div class="box"><h2>Vérifications : série n°${q.n}</h2>${[['tech',q.t==='i'?'Intérieur':'Extérieur',q.v],['secu','Sécurité routière',q.s],['secours','Premiers secours',q.p]].map(([k,l,qa])=>`<div style="margin:3px 0"><b>${ok(k)} ${l} :</b> ${esc(qa[0])}</div>`).join('')}</div>`})()}
-<div class="cols2"><div class="box"><h2>Manœuvres</h2><div>1 (imposée) : ${esc(manTxt('man1'))}</div><div>2 (au choix) : ${esc(manTxt('man2'))}</div>${S.elim.on?`<div style="margin-top:4px;color:#D6424A"><b>Erreur éliminatoire :</b> ${esc(elimTxt()||'oui')}</div>`:''}</div>
-<div class="box"><h2>La notation</h2><ul class="legend">${NOTATION.map(([col,,t])=>`<li><span class="dot" style="background:${{E:'#E5484D','0':'#F2A33A','1':'#F8CB94','2':'#FCE3A0','3':'#5DAE5A'}[col]}"></span>${t}</li>`).join('')}</ul></div></div>
+<div class="cols2">${(()=>{const q=serieOf(S.serie);const ok=k=>S.verif[k]?'✓':'✗';
+  if(!q)return `<div class="box"><h2>Vérifications</h2><div>Série non renseignée : ${VERIF.filter(([k])=>S.verif[k]).length} bonne(s) réponse(s) sur 3</div></div>`;
+  return `<div class="box"><h2>Vérifications : série n°${q.n}</h2>${[['tech',q.t==='i'?'Intérieur':'Extérieur',q.v],['secu','Sécurité routière',q.s],['secours','Premiers secours',q.p]].map(([k,l,qa])=>`<div style="margin:1px 0"><b>${ok(k)} ${l} :</b> ${esc(qa[0])}</div>`).join('')}</div>`})()}
+<div class="box"><h2>Manœuvres</h2><div>1 (imposée) : ${esc(manTxt('man1'))}</div><div>2 (au choix) : ${esc(manTxt('man2'))}</div>${S.elim.on?`<div style="margin-top:3px;color:#D6424A"><b>Erreur éliminatoire :</b> ${esc(elimTxt()||'oui')}</div>`:''}</div></div>
+<div class="leg1">${NOTATION.map(([col,l,t])=>`<span><span class="dot" style="background:${{E:'#E5484D','0':'#F2A33A','1':'#F8CB94','2':'#FCE3A0','3':'#5DAE5A'}[col]}"></span><b>${l}</b> ${t.split(' : ')[0].split(',')[0]}</span>`).join('')}</div>
 <div class="sigs"><div>Signature enseignant${sig('formateur')}</div><div>Signature élève${sig('eleve')}</div></div>
 </body></html>`}
 function saveFile(filename,data,type){const blob=new Blob([data],{type});const url=URL.createObjectURL(blob);
