@@ -59,6 +59,16 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Les 100 questions",
+      "url": "./questions.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

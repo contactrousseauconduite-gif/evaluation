@@ -219,6 +219,32 @@ input[type=search]{width:100%;max-width:100%;border:1px solid var(--line);backgr
 
 .apps a.homeb{flex:0 0 auto;display:grid;place-items:center;padding:6px 12px}
 .homelink{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none;color:inherit}
+
+.shm{position:fixed;inset:0;z-index:30;background:rgba(10,20,30,.55);display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:700px){.shm{align-items:center}}
+.shm-in{background:var(--surface);color:var(--ink);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+@media (min-width:700px){.shm-in{border-radius:18px}}
+.shm-h{display:flex;align-items:center;justify-content:space-between;gap:10px}.shm-h b{font-family:var(--display);font-weight:800;font-size:1.1rem}
+.shm-x{background:var(--chip);border:0;border-radius:50%;width:38px;height:38px;cursor:pointer;font-size:1rem;color:var(--ink)}
+.shm-fields:empty{display:none}
+.shm-tu button,.shm-tpl button{flex:1}
+.shm-text{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:.95rem;line-height:1.45;color:var(--ink);resize:vertical;min-height:200px}
+.shm-note{margin:-4px 0 0;font-size:.78rem;color:var(--muted)}
+.shm-act{display:grid;grid-template-columns:1fr 1fr;gap:8px}.shm-act .btn{display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink)}
+.shm-act .btn.primary{grid-column:1/-1;background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+
+.shm input{width:100%;max-width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:1rem;color:var(--ink);min-height:44px}
+.shm-fields label:last-child:nth-child(odd){grid-column:1/-1}
+.apps a{white-space:nowrap}
+@media (max-width:440px){.apps{gap:5px}.apps a{font-size:.8rem;padding:7px 4px}.apps a.homeb{padding:6px 10px}}
+
+.vq{padding:10px 0;border-top:1px solid var(--line)}.vq:first-child{border-top:0;padding-top:4px}
+.vq-cat{font-size:.75rem;font-weight:700;color:var(--tealtext);text-transform:none}
+.vq-q{margin:2px 0 6px;font-weight:700}
+.vq-a{margin:0 0 6px;font-size:.9rem}.vq-a summary{cursor:pointer;color:var(--tealtext);font-weight:700;width:max-content}.vq-a p{margin:6px 0 0;background:var(--chip);border-radius:10px;padding:8px 10px}
+.checks .vq-ok{padding:6px 0!important;border-top:0!important}
+.vq-serie{margin:8px 0 0;font-weight:700;color:var(--navy)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .vq-serie{color:var(--tealtext)}}
 </style>
 </head>
 <body>
@@ -238,6 +264,7 @@ input[type=search]{width:100%;max-width:100%;border:1px solid var(--line);backgr
 <div id="viewForm"></div><div id="viewHist" hidden></div></main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="questions.js"></script>
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
@@ -323,10 +350,56 @@ window.RC=(function(){
     const p=e.target.closest('[data-eleve-pick]');if(p&&onPick){const x=eleve(p.dataset.elevePick);if(x)onPick(x)}
     if(e.target.closest('[data-eleve-clear]')&&onClear)onClear();
   });
+
+  /* ---------- partage de messages et de documents ---------- */
+  const T=(tu,a,b)=>tu?a:b;
+  function copyText(t){return navigator.clipboard?navigator.clipboard.writeText(t).then(()=>true).catch(()=>fallbackCopy(t)):Promise.resolve(fallbackCopy(t))}
+  function fallbackCopy(t){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();return ok}
+  async function shareText(title,text){
+    if(navigator.share){try{await navigator.share({title,text});return}catch(e){if(e&&e.name==='AbortError')return}}
+    toast(await copyText(text)?'Message copié : collez-le dans votre messagerie':'Partage impossible ici')}
+  async function shareFile(url,name,title){
+    try{if(navigator.canShare){const blob=await (await fetch(url)).blob();const file=new File([blob],name,{type:'application/pdf'});
+      if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return}}}
+    catch(e){if(e&&e.name==='AbortError')return}
+    window.open(url,'_blank')}
+  let shm=null;
+  function openShare(o){
+    closeShare();let tpl=o.templates[0],tu=(get('rc:tu')||'tu')==='tu',edited=false;
+    const el=document.createElement('div');el.className='shm';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label',o.title);
+    const fieldsHTML=t=>(t.fields||[]).map(f=>`<label class="f">${esc(f.label)}<input type="${f.type||'text'}" data-shm-f="${f.k}" value="${esc(f.value||'')}" ${f.ph?`placeholder="${esc(f.ph)}"`:''}></label>`).join('');
+    el.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(o.title)}</b><button type="button" class="shm-x" data-shm-close aria-label="Fermer">✕</button></div>
+      ${o.templates.length>1?`<div class="seg shm-tpl">${o.templates.map(t=>`<button type="button" data-shm-tpl="${t.id}" aria-pressed="${t===tpl}">${esc(t.label)}</button>`).join('')}</div>`:''}
+      <div class="shm-fields grid"></div>
+      <div class="seg shm-tu"><button type="button" data-shm-tu="tu">Tutoiement</button><button type="button" data-shm-tu="vous">Vouvoiement</button></div>
+      <textarea class="shm-text" rows="11"></textarea><p class="shm-note">Vous pouvez modifier le texte avant de l’envoyer.</p>
+      <div class="shm-act"><button type="button" class="btn primary" data-shm-share>Partager</button>${o.tel?`<a class="btn" data-shm-sms href="#">Envoyer par SMS</a>`:''}<button type="button" class="btn" data-shm-copy>Copier</button></div></div>`;
+    document.body.appendChild(el);shm=el;document.documentElement.style.overflow='hidden';
+    const ta=el.querySelector('.shm-text');
+    const vals=()=>Object.fromEntries([...el.querySelectorAll('[data-shm-f]')].map(i=>[i.dataset.shmF,i.value]));
+    const sms=()=>{const a=el.querySelector('[data-shm-sms]');if(a)a.href=`sms:${o.tel.replace(/\s/g,'')}?body=${encodeURIComponent(ta.value)}`};
+    const regen=()=>{ta.value=tpl.build(tu,vals());edited=false;sms()};
+    const paint=()=>{el.querySelector('.shm-fields').innerHTML=fieldsHTML(tpl);el.querySelectorAll('[data-shm-tu]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.shmTu==='tu')===tu));regen()};
+    paint();
+    el.addEventListener('input',e=>{if(e.target===ta){edited=true;sms()}else if(e.target.dataset.shmF!=null)regen()});
+    el.addEventListener('click',async e=>{const b=e.target.closest('button,a');if(e.target===el){closeShare();return}if(!b)return;
+      if(b.dataset.shmClose!=null)closeShare();
+      else if(b.dataset.shmTu){if(edited&&!confirm('Refaire le message ? Vos modifications seront perdues.'))return;tu=b.dataset.shmTu==='tu';set('rc:tu',tu?'tu':'vous');paint()}
+      else if(b.dataset.shmTpl){if(edited&&!confirm('Changer de message ? Vos modifications seront perdues.'))return;tpl=o.templates.find(t=>t.id===b.dataset.shmTpl);el.querySelectorAll('[data-shm-tpl]').forEach(x=>x.setAttribute('aria-pressed',x===b));paint()}
+      else if(b.dataset.shmShare!=null)shareText(o.title,ta.value);
+      else if(b.dataset.shmCopy!=null)toast(await copyText(ta.value)?'Message copié':'Copie impossible ici');
+    });
+    el.addEventListener('keydown',e=>{if(e.key==='Escape')closeShare()});
+    setTimeout(()=>el.querySelector('.shm-x').focus(),50);
+  }
+  function closeShare(){if(shm){shm.remove();shm=null;document.documentElement.style.overflow=''}}
+  const DOCS=[{url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir'},
+    {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses'},
+    {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à remettre à l’élève lors de l’évaluation de départ'}];
   syncAll();
   return{backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
-    setPicker:(p,c)=>{onPick=p;onClear=c}};
+    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
 <script>
@@ -391,6 +464,14 @@ S=(S&&S.v===1)?normalize(S):blank();
 
 /* ---------- calcul ---------- */
 const verifN=()=>VERIF.filter(([k])=>S.verif[k]).length;
+/* ---------- série de vérification (compteur) ---------- */
+const serieOf=v=>{const d=String(v||'').replace(/\D/g,'');if(!d)return null;const n=+d%100||100;return (window.QUESTIONS||[]).find(q=>q.n===n)||null};
+function seriePanel(){const q=serieOf(S.serie);
+  const box=(k,label,qa)=>`<div class="vq"><div class="vq-h"><span class="vq-cat">${label}</span></div>${qa?`<p class="vq-q">${esc(qa[0])}</p><details class="vq-a"><summary>Réponse attendue</summary><p>${esc(qa[1])}</p></details>`:''}
+    <button type="button" class="vq-ok" data-toggle="verif.${k}" aria-pressed="${S.verif[k]}"><span class="box"></span><span>Bonne réponse <span class="sub">+1</span></span></button></div>`;
+  return (q?`<p class="vq-serie">Série n°${q.n}${q.twin?`, identique à la série n°${q.twin}`:''}</p>`:S.serie?`<p class="hint">Tapez 2 chiffres.</p>`:`<p class="hint">Tapez les 2 derniers chiffres du compteur pour afficher les 3 questions.</p>`)+
+    `<div class="checks vchk">`+box('tech',q?(q.t==='i'?'Vérification intérieure':'Vérification extérieure'):'Question technique (intérieure ou extérieure)',q&&q.v)+
+    box('secu','Sécurité routière',q&&q.s)+box('secours','Premiers secours',q&&q.p)+`</div><a class="linkbtn" href="questions.html">Voir les 100 questions</a>`}
 function itemScore(it){if(it.kind==='inst')return S.inst;if(it.kind==='verif')return verifN();return S.crit[it.k]}
 function compute(){
   let total=0,ans=0,tot=0,hasE=false;const sub={};
@@ -421,10 +502,10 @@ const man=(m,title,sub)=>`<div class="group"><div class="lab">${title} <span cla
 function itemRow(it){
   let ctrl;
   if(it.kind==='inst')ctrl=lvl('inst',L_INST);
-  else if(it.kind==='verif')ctrl=`<div class="checks vchk">${VERIF.map(([k,l])=>`<button type="button" data-toggle="verif.${k}" aria-pressed="${S.verif[k]}"><span class="box"></span><span>${l} <span class="sub">+1</span></span></button>`).join('')}</div>`;
+  else if(it.kind==='verif')ctrl=`<div data-serie-panel>${seriePanel()}</div>`;
   else ctrl=lvl('crit.'+it.k,L_E0123);
   return `<div class="item"><div class="ihead"><span class="inum">${it.n}</span><span class="q">${it.l}</span><span class="imax" data-part="i.${it.k}"></span></div>
-    ${it.kind==='verif'?inp('serie','N° de série (2 derniers chiffres du compteur)','text','','inputmode="numeric" maxlength="2"'):''}
+    ${it.kind==='verif'?inp('serie','2 derniers chiffres du compteur','text','','inputmode="numeric" maxlength="2" placeholder="Ex. : 26"'):''}
     ${ctrl}${hint(it.h)}</div>`;
 }
 
@@ -492,7 +573,7 @@ function renderForm(){
     <button type="button" class="btn primary" id="save">Enregistrer l’examen blanc</button>
     <button type="button" class="btn" id="export">Télécharger la fiche</button>
     <button type="button" class="btn" id="print">Imprimer ou PDF</button>
-    <button type="button" class="btn" id="copy">Copier le résumé</button>
+    <button type="button" class="btn" id="copy">Partager le bilan</button>
     <button type="button" class="btn quiet" id="new">Nouvel examen blanc</button>
   </div>`;
   document.querySelectorAll('canvas.pad').forEach(initPad);
@@ -525,6 +606,7 @@ function touch(){S.updatedAt=Date.now();clearTimeout(draftT);draftT=setTimeout((
 $('#viewForm').addEventListener('input',e=>{
   const k=e.target.dataset.in;if(!k)return;setP(S,k,e.target.value);
   if(k==='formateur'||k==='autorisation'){const p=pro();p[k]=e.target.value;lsSet(LS_PRO,JSON.stringify(p))}
+  if(k==='serie'){const pn=document.querySelector('[data-serie-panel]');if(pn)pn.innerHTML=seriePanel()}
   touch();
 });
 $('#viewForm').addEventListener('click',e=>{
@@ -545,7 +627,7 @@ $('#viewForm').addEventListener('click',e=>{
     case 'save':saveCurrent();break;
     case 'export':saveFile(`examen-blanc-${slug()}-${S.date||todayISO()}.html`,ficheHTML(false),'text/html');toast('Fiche téléchargée');break;
     case 'print':printFiche();break;
-    case 'copy':copySummary();break;
+    case 'copy':shareBilan();break;
     case 'new':{const c=compute();
       if((S.prenom||S.nom||c.ans)&&!isSaved()&&!confirm('Cet examen blanc n’est pas enregistré. Commencer une nouvelle fiche quand même ?'))break;
       S=blank();lsSet(LS_DRAFT,JSON.stringify(S));renderForm();window.scrollTo(0,0);toast('Nouvelle fiche prête');break}
@@ -618,6 +700,22 @@ function summary(){const c=compute();
 Élève : ${nomComplet()}
 Résultat : ${fmt(c.total)} / 31, ${LABEL[c.status].toLowerCase()}${c.complete||c.status==='elim'||c.status==='nonterm'?'':' (provisoire)'}${S.elim.on&&elimTxt()?'\nErreur éliminatoire : '+elimTxt():''}
 Manœuvres : ${manTxt('man1')} ; ${manTxt('man2')}${S.forts?'\nObservations : '+S.forts:''}${S.travail?'\nAxes de travail : '+S.travail:''}${S.formateur?'\nEnseignant : '+S.formateur:''}`}
+function shareBilan(){const T=RC.T,el=RC.eleve(S.eleveId);
+  RC.openShare({title:'Bilan de l’examen blanc',tel:(el&&el.tel)||S.tel||'',templates:[{id:'bilan',label:'Bilan',build:tu=>{
+    const c=compute(),p=S.prenom,items=BLOCKS.flatMap(b=>b.items),low=s=>s.charAt(0).toLowerCase()+s.slice(1);
+    const forts=items.filter(it=>{const v=itemScore(it);return v!=null&&v!=='E'&&v>=it.max}).map(it=>low(it.l)).slice(0,4);
+    const trav=items.filter(it=>{const v=itemScore(it);return it.kind!=='verif'&&v!=null&&(v==='E'||v<=1)}).map(it=>low(it.l)).slice(0,4);
+    const line={favorable:`${T(tu,'Tu as','Vous avez')} atteint le seuil de réussite de 20 points, bravo !`,
+      insuffisant:`Le seuil de réussite est de 20 points : on continue à travailler ensemble.`,
+      elim:`Une erreur éliminatoire a été commise${elimTxt()?` (${elimTxt().toLowerCase()})`:''}. On la retravaille en priorité.`,
+      nonterm:`L’examen blanc n’a pas pu être mené à son terme.`}[c.status];
+    return [`Bonjour${p?' '+p:''},`,'',
+      `Voici ${T(tu,'ton','votre')} bilan de l’examen blanc du ${frDate(S.date)} : ${fmt(c.total)} sur 31.`,line,'',
+      forts.length?`Points forts : ${forts.join(', ')}.`:null,
+      trav.length?`À travailler : ${trav.join(', ')}.`:null,
+      S.forts?`Observations : ${S.forts}`:null,S.travail?`Conseils : ${S.travail}`:null,
+      '',c.status==='favorable'?`${T(tu,'Continue','Continuez')} comme ça !`:'On en reparle à la prochaine leçon.','Rousseau Conduite']
+      .filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}}]})}
 async function copySummary(){const t=summary();
   try{await navigator.clipboard.writeText(t);toast('Résumé copié')}
   catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
@@ -681,6 +779,8 @@ ${autoRows.replace(/<tr><td class="lbl">(.*?)<\/td>(<td class="lv c0.*?<\/td>)(<
 <tr><td class="lbl" colspan="6">Courtoisie &nbsp; ${ck(S.bonus.courtoisie)}</td><td class="nt">${S.bonus.courtoisie?1:0}<small>/1</small></td></tr>
 </table>
 <div class="tot">Sous-totaux : véhicule ${fmt(c.sub.veh.s)}/8, route ${fmt(c.sub.route.s)}/9, partage ${fmt(c.sub.partage.s)}/9, autonomie ${fmt(c.sub.auto.s)}/3, bonus ${c.sub.bonus.s}/2 <span>Total général : ${fmt(c.total)} / 31</span></div>
+${(()=>{const q=serieOf(S.serie);if(!q)return '';const ok=k=>S.verif[k]?'✓':'✗';
+  return `<div class="box"><h2>Vérifications : série n°${q.n}</h2>${[['tech',q.t==='i'?'Intérieur':'Extérieur',q.v],['secu','Sécurité routière',q.s],['secours','Premiers secours',q.p]].map(([k,l,qa])=>`<div style="margin:3px 0"><b>${ok(k)} ${l} :</b> ${esc(qa[0])}</div>`).join('')}</div>`})()}
 <div class="cols2"><div class="box"><h2>Manœuvres</h2><div>1 (imposée) : ${esc(manTxt('man1'))}</div><div>2 (au choix) : ${esc(manTxt('man2'))}</div>${S.elim.on?`<div style="margin-top:4px;color:#D6424A"><b>Erreur éliminatoire :</b> ${esc(elimTxt()||'oui')}</div>`:''}</div>
 <div class="box"><h2>La notation</h2><ul class="legend">${NOTATION.map(([col,,t])=>`<li><span class="dot" style="background:${{E:'#E5484D','0':'#F2A33A','1':'#F8CB94','2':'#FCE3A0','3':'#5DAE5A'}[col]}"></span>${t}</li>`).join('')}</ul></div></div>
 <div class="sigs"><div>Signature enseignant${sig('formateur')}</div><div>Signature élève${sig('eleve')}</div></div>

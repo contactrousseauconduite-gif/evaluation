@@ -1,5 +1,5 @@
-const CACHE = 'rc-eval-v5';
-const SHELL = ['./', './index.html', './evaluation.html', './examen.html', './eleves.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
+const CACHE = 'rc-eval-v7';
+const SHELL = ['./', './index.html', './evaluation.html', './examen.html', './eleves.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

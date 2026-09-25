@@ -174,6 +174,24 @@ input[type=search]{width:100%;max-width:100%;border:1px solid var(--line);backgr
 
 .apps a.homeb{flex:0 0 auto;display:grid;place-items:center;padding:6px 12px}
 .homelink{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none;color:inherit}
+
+.shm{position:fixed;inset:0;z-index:30;background:rgba(10,20,30,.55);display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:700px){.shm{align-items:center}}
+.shm-in{background:var(--surface);color:var(--ink);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+@media (min-width:700px){.shm-in{border-radius:18px}}
+.shm-h{display:flex;align-items:center;justify-content:space-between;gap:10px}.shm-h b{font-family:var(--display);font-weight:800;font-size:1.1rem}
+.shm-x{background:var(--chip);border:0;border-radius:50%;width:38px;height:38px;cursor:pointer;font-size:1rem;color:var(--ink)}
+.shm-fields:empty{display:none}
+.shm-tu button,.shm-tpl button{flex:1}
+.shm-text{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px;font-size:.95rem;line-height:1.45;color:var(--ink);resize:vertical;min-height:200px}
+.shm-note{margin:-4px 0 0;font-size:.78rem;color:var(--muted)}
+.shm-act{display:grid;grid-template-columns:1fr 1fr;gap:8px}.shm-act .btn{display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink)}
+.shm-act .btn.primary{grid-column:1/-1;background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+
+.shm input{width:100%;max-width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:1rem;color:var(--ink);min-height:44px}
+.shm-fields label:last-child:nth-child(odd){grid-column:1/-1}
+.apps a{white-space:nowrap}
+@media (max-width:440px){.apps{gap:5px}.apps a{font-size:.8rem;padding:7px 4px}.apps a.homeb{padding:6px 10px}}
 </style>
 </head>
 <body>
@@ -278,10 +296,56 @@ window.RC=(function(){
     const p=e.target.closest('[data-eleve-pick]');if(p&&onPick){const x=eleve(p.dataset.elevePick);if(x)onPick(x)}
     if(e.target.closest('[data-eleve-clear]')&&onClear)onClear();
   });
+
+  /* ---------- partage de messages et de documents ---------- */
+  const T=(tu,a,b)=>tu?a:b;
+  function copyText(t){return navigator.clipboard?navigator.clipboard.writeText(t).then(()=>true).catch(()=>fallbackCopy(t)):Promise.resolve(fallbackCopy(t))}
+  function fallbackCopy(t){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();return ok}
+  async function shareText(title,text){
+    if(navigator.share){try{await navigator.share({title,text});return}catch(e){if(e&&e.name==='AbortError')return}}
+    toast(await copyText(text)?'Message copié : collez-le dans votre messagerie':'Partage impossible ici')}
+  async function shareFile(url,name,title){
+    try{if(navigator.canShare){const blob=await (await fetch(url)).blob();const file=new File([blob],name,{type:'application/pdf'});
+      if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return}}}
+    catch(e){if(e&&e.name==='AbortError')return}
+    window.open(url,'_blank')}
+  let shm=null;
+  function openShare(o){
+    closeShare();let tpl=o.templates[0],tu=(get('rc:tu')||'tu')==='tu',edited=false;
+    const el=document.createElement('div');el.className='shm';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label',o.title);
+    const fieldsHTML=t=>(t.fields||[]).map(f=>`<label class="f">${esc(f.label)}<input type="${f.type||'text'}" data-shm-f="${f.k}" value="${esc(f.value||'')}" ${f.ph?`placeholder="${esc(f.ph)}"`:''}></label>`).join('');
+    el.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(o.title)}</b><button type="button" class="shm-x" data-shm-close aria-label="Fermer">✕</button></div>
+      ${o.templates.length>1?`<div class="seg shm-tpl">${o.templates.map(t=>`<button type="button" data-shm-tpl="${t.id}" aria-pressed="${t===tpl}">${esc(t.label)}</button>`).join('')}</div>`:''}
+      <div class="shm-fields grid"></div>
+      <div class="seg shm-tu"><button type="button" data-shm-tu="tu">Tutoiement</button><button type="button" data-shm-tu="vous">Vouvoiement</button></div>
+      <textarea class="shm-text" rows="11"></textarea><p class="shm-note">Vous pouvez modifier le texte avant de l’envoyer.</p>
+      <div class="shm-act"><button type="button" class="btn primary" data-shm-share>Partager</button>${o.tel?`<a class="btn" data-shm-sms href="#">Envoyer par SMS</a>`:''}<button type="button" class="btn" data-shm-copy>Copier</button></div></div>`;
+    document.body.appendChild(el);shm=el;document.documentElement.style.overflow='hidden';
+    const ta=el.querySelector('.shm-text');
+    const vals=()=>Object.fromEntries([...el.querySelectorAll('[data-shm-f]')].map(i=>[i.dataset.shmF,i.value]));
+    const sms=()=>{const a=el.querySelector('[data-shm-sms]');if(a)a.href=`sms:${o.tel.replace(/\s/g,'')}?body=${encodeURIComponent(ta.value)}`};
+    const regen=()=>{ta.value=tpl.build(tu,vals());edited=false;sms()};
+    const paint=()=>{el.querySelector('.shm-fields').innerHTML=fieldsHTML(tpl);el.querySelectorAll('[data-shm-tu]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.shmTu==='tu')===tu));regen()};
+    paint();
+    el.addEventListener('input',e=>{if(e.target===ta){edited=true;sms()}else if(e.target.dataset.shmF!=null)regen()});
+    el.addEventListener('click',async e=>{const b=e.target.closest('button,a');if(e.target===el){closeShare();return}if(!b)return;
+      if(b.dataset.shmClose!=null)closeShare();
+      else if(b.dataset.shmTu){if(edited&&!confirm('Refaire le message ? Vos modifications seront perdues.'))return;tu=b.dataset.shmTu==='tu';set('rc:tu',tu?'tu':'vous');paint()}
+      else if(b.dataset.shmTpl){if(edited&&!confirm('Changer de message ? Vos modifications seront perdues.'))return;tpl=o.templates.find(t=>t.id===b.dataset.shmTpl);el.querySelectorAll('[data-shm-tpl]').forEach(x=>x.setAttribute('aria-pressed',x===b));paint()}
+      else if(b.dataset.shmShare!=null)shareText(o.title,ta.value);
+      else if(b.dataset.shmCopy!=null)toast(await copyText(ta.value)?'Message copié':'Copie impossible ici');
+    });
+    el.addEventListener('keydown',e=>{if(e.key==='Escape')closeShare()});
+    setTimeout(()=>el.querySelector('.shm-x').focus(),50);
+  }
+  function closeShare(){if(shm){shm.remove();shm=null;document.documentElement.style.overflow=''}}
+  const DOCS=[{url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir'},
+    {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses'},
+    {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à remettre à l’élève lors de l’évaluation de départ'}];
   syncAll();
   return{backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
-    setPicker:(p,c)=>{onPick=p;onClear=c}};
+    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
 <script>
@@ -459,7 +523,7 @@ function renderForm(){
     <button type="button" class="btn primary" id="save">Enregistrer l’évaluation</button>
     <button type="button" class="btn" id="export" ${downloads?'':'hidden'}>Télécharger la fiche</button>
     <button type="button" class="btn" id="print">Imprimer ou PDF</button>
-    <button type="button" class="btn" id="copy">Copier le résumé</button>
+    <button type="button" class="btn" id="copy">Partager le bilan</button>
     <button type="button" class="btn quiet" id="new">Nouvelle évaluation</button>
   </div>`;
   document.querySelectorAll('canvas.pad').forEach(initPad);
@@ -533,7 +597,7 @@ $('#viewForm').addEventListener('click',e=>{
     case 'reset':S.pratique=null;touch();updateDerived();break;
     case 'save':saveCurrent();break;
     case 'export':exportFiche();break;
-    case 'copy':copySummary();break;
+    case 'copy':shareBilan();break;
     case 'print':printFiche();break;
     case 'new':
       if((S.prenom||S.nom||c.ans)&&!isSaved()&&!confirm('Cette évaluation n’est pas enregistrée. Commencer une nouvelle fiche quand même ?'))break;
@@ -614,6 +678,16 @@ function summary(){const c=compute(),h=pratique(c),r=retenue(c);
 Résultat : ${c.pos} positifs, ${c.neg} négatifs, résultat final ${c.res>0?'+':''}${c.res} (${c.cat})
 Proposition : ${S.theorie?S.theorie+' h de théorie, ':''}${h!=null?h+' h de pratique':'pratique non définie'}
 Proposition acceptée : ${S.acceptee||'non renseigné'}${S.acceptee==='Non'&&(r.t||r.p)?`\nProposition retenue : ${r.t||0} h de théorie, ${r.p||0} h de pratique`:''}${S.formateur?'\nFormateur : '+S.formateur:''}`}
+function shareBilan(){const T=RC.T;
+  RC.openShare({title:'Bilan de l’évaluation de départ',tel:S.tel,templates:[{id:'bilan',label:'Bilan',build:tu=>{
+    const c=compute(),h=pratique(c),r=retenue(c),p=S.prenom;
+    return [`Bonjour${p?' '+p:''},`,'',
+      `Merci pour ${T(tu,'ton','votre')} évaluation de départ du ${frDate(S.date)}.`,
+      c.ans?`Résultat : ${c.cat} (${c.res>0?'+':''}${c.res}).`:null,
+      h!=null?`Je ${T(tu,'te','vous')} propose une formation de ${h} h de conduite${S.theorie?` et ${S.theorie} h de théorie`:''}.`:null,
+      S.acceptee==='Non'&&(r.t||r.p)?`Nous avons retenu ensemble ${r.p||h} h de conduite${r.t?` et ${r.t} h de théorie`:''}.`:null,
+      `Ce volume est une estimation : il pourra évoluer selon ${T(tu,'ta','votre')} progression.`,
+      '','À très vite sur la route !','Rousseau Conduite'].filter(x=>x!==null).join('\n')}}]})}
 async function copySummary(){const t=summary();
   try{await navigator.clipboard.writeText(t);toast('Résumé copié')}
   catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
