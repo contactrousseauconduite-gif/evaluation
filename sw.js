@@ -1,4 +1,4 @@
-const CACHE = 'rc-eval-v7';
+const CACHE = 'rc-eval-v8';
 const SHELL = ['./', './index.html', './evaluation.html', './examen.html', './eleves.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
 
 self.addEventListener('install', e => {
