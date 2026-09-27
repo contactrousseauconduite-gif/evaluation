@@ -289,6 +289,7 @@ a.card{text-decoration:none;color:inherit}
 .save>div:first-child{display:flex;flex-direction:column;gap:2px}.save>div:first-child span{color:var(--muted);font-size:.88rem}
 .save-act{display:flex;gap:8px}.save .btn{min-height:42px;padding:9px 14px;font-size:.9rem}
 .save .btn[data-bk-now]{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+@media (min-width:700px){.choices>.choice:last-child:nth-child(odd){grid-column:1/-1;min-height:96px}}
 @media (min-width:700px){.choices{grid-template-columns:repeat(2,1fr)}.choice{min-height:120px;padding:20px 18px}.choice .ct b{font-size:1.25rem}}
 
 .shm{position:fixed;inset:0;z-index:30;background:rgba(10,20,30,.55);display:flex;align-items:flex-end;justify-content:center}
@@ -330,6 +331,9 @@ a.card{text-decoration:none;color:inherit}
   <a class="choice" href="evaluation.html">
     <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4.5M8.5 17.5h7"/></svg></span>
     <span class="ct"><b>Évaluation de départ</b><span>Première heure : estimer le volume de formation</span><em id="nEv"></em></span></a>
+  <a class="choice" href="bilan.html">
+    <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6M10 20V9M14 20v-8M18 20V5"/></svg></span>
+    <span class="ct"><b>Bilan de compétences</b><span>Élève venant d’une autre auto-école : le point sur le REMC</span><em id="nBi"></em></span></a>
   <a class="choice" href="examen.html">
     <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg></span>
     <span class="ct"><b>Examen blanc</b><span>La grille de l’examen, notée sur 31 points</span><em id="nEx"></em></span></a>
@@ -350,7 +354,7 @@ a.card{text-decoration:none;color:inherit}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -379,13 +383,13 @@ window.RC=(function(){
   function addEleve(o){const l=eleves(),e=Object.assign({id:newId(),createdAt:Date.now(),updatedAt:Date.now(),notes:''},o);l.push(e);saveEleves(l);return e}
   function updateEleve(id,patch){const l=eleves(),e=l.find(x=>x.id===id);if(!e)return;Object.assign(e,patch,{updatedAt:Date.now()});saveEleves(l);
     /* garder les noms des fiches à jour */
-    [K.ev,K.ex].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
+    [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
-  function syncAll(){[K.ev,K.ex].forEach(k=>{const recs=list(k);let ch=false;
+    [K.ev,K.ex,K.bi].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+  function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
     [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
     if(ch)set(k,JSON.stringify(recs))})}
-  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id)});
+  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id),bi:list(K.bi).filter(x=>x.eleveId===id)});
 
   /* sélecteur d'élève dans les fiches */
   let onPick=null,onClear=null;
@@ -404,22 +408,22 @@ window.RC=(function(){
   /* ---------- sauvegarde ---------- */
   function saveFile(name,data){const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000)}
-  function status(){const n=list(K.ev).length+list(K.ex).length,last=+get(K.last)||0;
+  function status(){const n=list(K.ev).length+list(K.ex).length+list(K.bi).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  function backup(){const ev=list(K.ev),ex=list(K.ex),el=eleves();
-    if(!ev.length&&!ex.length&&!el.length){toast('Aucune fiche à sauvegarder');return}
-    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:4,date:Date.now(),eleves:el,evaluations:ev,examens:ex}));
+  function backup(){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),el=eleves();
+    if(!ev.length&&!ex.length&&!bi.length&&!el.length){toast('Aucune fiche à sauvegarder');return}
+    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi}));
     set(K.last,String(Date.now()));check();
-    toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length} fiche${ev.length+ex.length>1?'s':''}`)}
+    toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length+bi.length} fiche${ev.length+ex.length+bi.length>1?'s':''}`)}
   function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
     (items||[]).filter(x=>x&&x.id&&ok(x)).forEach(x=>{n++;if(!byId[x.id]||(x.updatedAt||0)>(byId[x.id].updatedAt||0))byId[x.id]=x});
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
     try{const d=JSON.parse(await file.text());
-      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1);
-      if(!el&&!ev&&!ex)throw 0;syncAll();
-      toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}`);check();return true}
+      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1);
+      if(!el&&!ev&&!ex&&!bi)throw 0;syncAll();
+      toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
     const due=s.n>0&&(!s.last||s.days>=LIMIT)&&Date.now()>(+get(K.snooze)||0);
@@ -542,23 +546,24 @@ function render(){
   const now=new Date();
   $('#hello').textContent=now.getHours()>=18?'Bonsoir':'Bonjour';
   const d=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});$('#today').textContent=d.charAt(0).toUpperCase()+d.slice(1);
-  const ev=get('rc-eval:history')||[],ex=get('rc-exam:history')||[],el=RC.eleves();
+  const ev=get('rc-eval:history')||[],ex=get('rc-exam:history')||[],bi=get('rc-bilan:history')||[],el=RC.eleves();
   $('#nEv').textContent=ev.length?plural(ev.length,'évaluation enregistrée','évaluations enregistrées'):'';
   $('#nEx').textContent=ex.length?plural(ex.length,'examen blanc enregistré','examens blancs enregistrés'):'';
+  $('#nBi').textContent=bi.length?plural(bi.length,'bilan enregistré','bilans enregistrés'):'';
   $('#nEl').textContent=el.length?plural(el.length,'élève suivi','élèves suivis'):'';
 
   /* fiche commencée mais pas enregistrée */
-  const drafts=[['rc-eval:draft',ev,'evaluation.html','l’évaluation de départ'],['rc-exam:draft',ex,'examen.html','l’examen blanc']].map(([k,hist,href,lab])=>{
+  const drafts=[['rc-eval:draft',ev,'evaluation.html','l’évaluation de départ'],['rc-bilan:draft',bi,'bilan.html','le bilan de compétences'],['rc-exam:draft',ex,'examen.html','l’examen blanc']].map(([k,hist,href,lab])=>{
     const s=get(k);if(!s||!(s.nom||s.prenom))return '';const saved=hist.find(x=>x.id===s.id);if(saved&&saved.updatedAt===s.updatedAt)return '';
     return `<a class="resume" href="${href}"><span><b>Reprendre ${lab}</b> de ${esc(RC.full(s))}</span><small>Fiche commencée, pas encore enregistrée</small></a>`}).join('');
   $('#resume').innerHTML=drafts;
 
   /* dernières fiches */
-  const all=[...ev.map(x=>({x,t:'ev'})),...ex.map(x=>({x,t:'ex'}))].sort((a,b)=>(b.x.updatedAt||0)-(a.x.updatedAt||0)).slice(0,4);
+  const all=[...ev.map(x=>({x,t:'ev'})),...ex.map(x=>({x,t:'ex'})),...bi.map(x=>({x,t:'bi'}))].sort((a,b)=>(b.x.updatedAt||0)-(a.x.updatedAt||0)).slice(0,4);
   $('#recent').innerHTML=all.length?`<h2 class="h2">Dernières fiches</h2><div class="block list">${all.map(({x,t})=>{const r=x.result||{};
-    const right=t==='ex'?`<b>${r.total!=null?fmt(r.total):'–'}<small>/31</small></b><span class="st ${r.status}">${LABEL[r.status]||''}</span>`:
+    const right=t==='bi'?(r.ac!=null?`<b>${r.ac}<small>/${r.total||32}</small></b><span>objectifs acquis</span>`:'<span>à compléter</span>'):t==='ex'?`<b>${r.total!=null?fmt(r.total):'–'}<small>/31</small></b><span class="st ${r.status}">${LABEL[r.status]||''}</span>`:
       (()=>{const v=(x.acceptee==='Non'&&r.retPrat)?r.retPrat:r.pratique;return v!=null?`<b>${v}<small> h</small></b><span>pratique prévue</span>`:'<span>à compléter</span>'})();
-    return `<a class="row2" href="${t==='ev'?'evaluation.html':'examen.html'}?open=${esc(x.id)}"><div><b>${esc(RC.full(x))}</b><span>${t==='ev'?'Évaluation de départ':'Examen blanc'}, ${esc(frDate(x.date))}</span></div><div class="sc">${right}</div></a>`}).join('')}</div>`:'';
+    return `<a class="row2" href="${{ev:'evaluation.html',ex:'examen.html',bi:'bilan.html'}[t]}?open=${esc(x.id)}"><div><b>${esc(RC.full(x))}</b><span>${{ev:'Évaluation de départ',ex:'Examen blanc',bi:'Bilan de compétences'}[t]}, ${esc(frDate(x.date))}</span></div><div class="sc">${right}</div></a>`}).join('')}</div>`:'';
   RC.check();
 }
 $('#docs').innerHTML=RC.DOCS.map((d,i)=>`<div class="doc"><div><b>${esc(d.title)}</b><span>${esc(d.sub)}</span></div><div class="doc-act"><button type="button" class="btn" data-doc-share="${i}">Partager</button><a class="btn quiet" href="${esc(d.url)}" target="_blank" rel="noopener">Ouvrir</a></div></div>`).join('');

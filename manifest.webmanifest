@@ -1,7 +1,7 @@
 {
   "name": "Rousseau Conduite – Évaluations",
   "short_name": "Rousseau Conduite",
-  "description": "Évaluation de départ, examen blanc et dossiers élèves de Rousseau Conduite",
+  "description": "Évaluation de départ, bilan de compétences, examen blanc et dossiers élèves de Rousseau Conduite",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
@@ -33,6 +33,16 @@
     {
       "name": "Évaluation de départ",
       "url": "./evaluation.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Bilan de compétences",
+      "url": "./bilan.html",
       "icons": [
         {
           "src": "icon-192.png",
