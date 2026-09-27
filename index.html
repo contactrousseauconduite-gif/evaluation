@@ -288,7 +288,7 @@ a.card{text-decoration:none;color:inherit}
 .block.list{padding:4px 16px}
 .save{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .save>div:first-child{display:flex;flex-direction:column;gap:2px}.save>div:first-child span{color:var(--muted);font-size:.88rem}
-.save-act{display:flex;gap:8px}.save .btn{min-height:42px;padding:9px 14px;font-size:.9rem}
+.save-act{display:flex;gap:8px;flex-wrap:wrap}.save-tip{display:block;font-size:.8rem;color:var(--muted);margin-top:4px}.save .btn.go{background:var(--navy);color:var(--navy-ink);border-color:var(--navy);display:inline-flex;align-items:center;gap:8px}.save .btn.go svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}.save .btn{min-height:42px;padding:9px 14px;font-size:.9rem}
 .save .btn[data-bk-now]{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
 @media (min-width:700px){.choices>.choice:last-child:nth-child(odd){grid-column:1/-1;min-height:96px}}
 @media (min-width:700px){.choices{grid-template-columns:repeat(2,1fr)}.choice{min-height:120px;padding:20px 18px}.choice .ct b{font-size:1.25rem}}
@@ -373,9 +373,9 @@ a.card{text-decoration:none;color:inherit}
 <section id="veh"></section>
 <section class="docs"><h2 class="h2">Documents pour les élèves</h2><div class="block list" id="docs"></div></section>
 <section id="recent"></section>
-<section class="block save"><div><b>Sauvegarde</b><span data-bk-last></span></div>
-  <div class="save-act"><button type="button" class="btn" data-bk-now>Tout sauvegarder</button><button type="button" class="btn quiet" id="restoreBtn">Restaurer</button></div>
-  <input type="file" accept=".json,application/json" id="restoreFile" hidden></section>
+<section class="block save"><div><b>Sauvegarde</b><span data-bk-last></span><span class="save-tip">Touchez « Sauvegarder dans Drive », puis choisissez <b>Drive</b> dans la liste et votre dossier « Rousseau Conduite ». Pour restaurer, choisissez le fichier depuis Drive.</span></div>
+  <div class="save-act"><button type="button" class="btn go" data-bk-now><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l6 10-4 7H6l-4-7z"/><path d="M8 3l6 10h8M2 13h12l-4 7"/></svg>Sauvegarder dans Drive</button><button type="button" class="btn quiet" id="restoreBtn">Restaurer</button><button type="button" class="btn quiet" data-bk-dl>Télécharger</button></div>
+  <input type="file" accept=".json,.txt,application/json,text/plain" id="restoreFile" hidden></section>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -438,11 +438,15 @@ window.RC=(function(){
   function status(){const n=list(K.ev).length+list(K.ex).length+list(K.bi).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  function backup(){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),el=eleves();
+  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de}));
-    set(K.last,String(Date.now()));check();
-    toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length+bi.length} fiche${ev.length+ex.length+bi.length>1?'s':''}`)}
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
+    const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
+    if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Sauvegarde Rousseau Conduite',text:'Sauvegarde de l’appli Rousseau Conduite du '+fr(Date.now())});done('Sauvegarde envoyée : '+sum);return}}
+      catch(e){if(e&&e.name==='AbortError'){toast('Sauvegarde annulée');return}}}
+    saveFile(base+'.json',json);done('Sauvegarde téléchargée : '+sum)}
   function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
     (items||[]).filter(x=>x&&x.id&&ok(x)).forEach(x=>{n++;if(!byId[x.id]||(x.updatedAt||0)>(byId[x.id].updatedAt||0))byId[x.id]=x});
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
@@ -460,6 +464,7 @@ window.RC=(function(){
     document.querySelectorAll('[data-bk-last]').forEach(x=>x.textContent=lastText())}
   document.addEventListener('click',e=>{
     if(e.target.closest('[data-bk-now]'))backup();
+    if(e.target.closest('[data-bk-dl]'))backup({download:true});
     if(e.target.closest('[data-bk-later]')){set(K.snooze,String(Date.now()+DAY));check()}
     const p=e.target.closest('[data-eleve-pick]');if(p&&onPick){const x=eleve(p.dataset.elevePick);if(x)onPick(x)}
     if(e.target.closest('[data-eleve-clear]')&&onClear)onClear();
