@@ -654,11 +654,71 @@ function angles(){const sc=2.6,cx=600,cy=470;let s=R(0,0,1200,800,G)+R(351,0,498
   s+=R(40,30,330,96,'#FFFFFF','rx="12" opacity=".92"')+R(60,50,22,22,'#7FC4E8','rx="4"')+T(94,68,'Vu dans les rétroviseurs',18,'#1C2B40','700','start')
     +R(60,86,22,22,'#F2A33A','rx="4"')+T(94,104,'Angle mort : tourner la tête',18,'#1C2B40','700','start');
   return s}
+function transmission(){const B=(x,y,n,r=24,f=26)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${TEAL}" stroke="#fff" stroke-width="4"/>`+T(x,y+f*.35,n,f,'#fff');
+  let s=R(0,0,1200,800,'#F4F6F8')+T(330,44,'Du moteur aux roues',28,NAVY);
+  /* voiture (réduite) */
+  let c=`<path d="M110 575 L110 480 Q116 440 190 428 L350 408 Q430 300 530 288 L770 288 Q850 294 915 392 L1030 410 Q1090 422 1095 478 L1095 575 Z" fill="#FFFFFF" stroke="#B8C3CC" stroke-width="6" stroke-linejoin="round"/>`;
+  c+=`<path d="M395 404 Q455 316 535 306 L640 306 L640 404 Z M660 306 L765 306 Q830 312 880 398 L660 404 Z" fill="#E3EEF3" stroke="#B8C3CC" stroke-width="4"/>`;
+  c+=`<circle cx="300" cy="575" r="72" fill="#2C3440"/><circle cx="300" cy="575" r="34" fill="#C9D1D8"/><circle cx="930" cy="575" r="72" fill="#2C3440"/><circle cx="930" cy="575" r="34" fill="#C9D1D8"/>`;
+  c+=`<line x1="470" y1="470" x2="300" y2="575" stroke="#5A6B7C" stroke-width="14" stroke-linecap="round"/><circle cx="300" cy="575" r="12" fill="#5A6B7C"/>`;
+  c+=L(330,425,352,425,'#5A6B7C',14)+L(378,425,420,425,'#5A6B7C',14);
+  c+=R(150,380,180,92,NAVY,'rx="14"')+T(240,436,'Moteur',30,'#fff');
+  c+=R(352,388,26,74,TEAL,'rx="8" stroke="#1C2B40" stroke-width="2"')+`<line x1="365" y1="396" x2="365" y2="454" stroke="#fff" stroke-width="3"/>`;
+  c+=`<path d="M420 386 L560 400 L560 470 L420 482 Z" fill="#8CC89F" stroke="#1C2B40" stroke-width="3" stroke-linejoin="round"/>`+T(488,444,'Boîte',26,'#1C2B40');
+  c+=`<line x1="505" y1="392" x2="525" y2="318" stroke="#1C2B40" stroke-width="8" stroke-linecap="round"/><circle cx="527" cy="312" r="15" fill="#1C2B40"/>`;
+  c+=B(170,366,'1',30,32)+B(365,360,'2',30,32)+B(578,376,'3',30,32)+B(218,510,'4',30,32);
+  s+=`<g transform="translate(-48 -110) scale(.62)">${c}</g>`;
+  const leg=[['1','Moteur','produit l’énergie qui fait tourner les roues'],['2','Embrayage','relie ou sépare le moteur et la boîte (pédale de gauche)'],
+    ['3','Boîte de vitesses','choisit le rapport adapté à la vitesse'],['4','Roues motrices','transmettent le mouvement à la route']];
+  leg.forEach(([n,t,d],i)=>{const x=680,y=96+i*68;s+=B(x+18,y-7,n,20,22)+T(x+50,y,t,21,NAVY,'700','start')+T(x+50,y+25,d,17,'#3D4F61','400','start')});
+  /* l’embrayage en 3 étapes */
+  s+=T(20,404,'L’embrayage en 3 étapes',22,NAVY,'700','start');
+  const ST=[{t:'Pédale enfoncée',a:32,gap:26,l1:'Embrayage ouvert :',l2:'pas de connexion, le moteur tourne seul.',chip:['Pas de connexion','#9AA5AF','#1C2B40'],box:0},
+    {t:'Point de patinage',a:16,gap:3,l1:'Les disques se touchent :',l2:'la voiture commence à avancer.',chip:['Patinage','#F2B84B','#1C2B40'],box:1},
+    {t:'Pédale relâchée',a:0,gap:0,l1:'Embrayage fermé : la connexion',l2:'est faite, le véhicule peut avancer.',chip:['Connexion','#3E9A62','#fff'],box:2}];
+  ST.forEach((st,i)=>{const x=20+i*395,y=418,w=370;
+    s+=R(x,y,w,370,'#FFFFFF','rx="16" stroke="#D2DDE3" stroke-width="2"')+B(x+30,y+32,String(i+1),18,20)+T(x+58,y+39,st.t,20,NAVY,'700','start');
+    /* gros plan : position de conduite, pédale suspendue, talon au plancher */
+    const bx=x+16,by=y+60,bw=186,bh=200,cid='cpPed'+i;
+    s+=`<clipPath id="${cid}"><rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="12"/></clipPath><g clip-path="url(#${cid})">`;
+    s+=R(bx,by,bw,bh,'#F3F6F8')+`<polygon points="${bx},${by} ${bx+30},${by} ${bx+16},${by+bh} ${bx},${by+bh}" fill="#DCE3E8"/>`+R(bx,by+186,bw,14,'#CFD7DE');
+    const beta=[18,32,48][st.box]*Math.PI/180,HX=bx+148,HY=by+184,P=(u,v)=>[HX+u*Math.cos(beta)-v*Math.sin(beta),HY+u*Math.sin(beta)+v*Math.cos(beta)];
+    const ball=P(-66,0),pad=[ball[0]-Math.sin(beta)*10,ball[1]+Math.cos(beta)*10],ank=P(-12,-36),KL=120,knee=[ank[0]+KL*Math.cos(Math.PI/3),ank[1]-KL*Math.sin(Math.PI/3)];
+    /* pédale suspendue */
+    const pv=[bx+36,by+10];
+    const nx=-Math.sin(beta),ny=Math.cos(beta),ex=pad[0]+nx*4,ey=pad[1]+ny*4;s+=`<path d="M${pv[0]} ${pv[1]} C${pv[0]+4} ${(ey-10).toFixed(1)} ${(ex+nx*26-6).toFixed(1)} ${(ey+ny*26).toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="#2C3440" stroke-width="7" stroke-linecap="round"/><circle cx="${pv[0]}" cy="${pv[1]}" r="6" fill="#2C3440"/>`;
+    /* jambe */
+    s+=`<line x1="${ank[0].toFixed(1)}" y1="${ank[1].toFixed(1)}" x2="${knee[0].toFixed(1)}" y2="${knee[1].toFixed(1)}" stroke="#6E8FB3" stroke-width="30" stroke-linecap="round"/>`;
+    /* chaussure (talon à l’origine, pointe vers la gauche) */
+    s+=`<g transform="translate(${HX} ${HY}) rotate(${(beta*180/Math.PI).toFixed(1)})">
+      <path d="M4 -6 C8 -22 2 -36 -12 -40 L-34 -40 L-60 -30 L-80 -24 C-94 -22 -96 -10 -90 -6 Z" fill="${NAVY}"/>
+      <path d="M-30 -36 L-36 -30 M-40 -33 L-46 -27 M-50 -30 L-56 -24" stroke="#8CC89F" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="-94" y="-7" width="100" height="9" rx="4.5" fill="#FFFFFF" stroke="#9AA9B6" stroke-width="2"/></g>`;
+    /* plaque de la pédale, sous l’avant de la semelle */
+    s+=`<g transform="translate(${pad[0].toFixed(1)} ${pad[1].toFixed(1)}) rotate(${(beta*180/Math.PI).toFixed(1)})"><rect x="-20" y="-4" width="40" height="9" rx="3" fill="#E0A12E" stroke="#2C3440" stroke-width="2"/></g>`;
+    /* flèche du mouvement de la pédale */
+    const arr=(fx,fy,tx2,ty2,col,dash)=>{const a=Math.atan2(ty2-fy,tx2-fx),h=10;return `<line x1="${fx}" y1="${fy}" x2="${tx2}" y2="${ty2}" stroke="${col}" stroke-width="4" stroke-linecap="round"${dash?' stroke-dasharray="5 5"':''}/><path d="M${(tx2-h*Math.cos(a-.5)).toFixed(1)} ${(ty2-h*Math.sin(a-.5)).toFixed(1)} L${tx2} ${ty2} L${(tx2-h*Math.cos(a+.5)).toFixed(1)} ${(ty2-h*Math.sin(a+.5)).toFixed(1)}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`};
+    const ax=pad[0]-50,ay=pad[1]-34;
+    s+=st.box===0?arr(ax+4,ay-8,ax-10,ay+18,'#D6424A'):st.box===1?arr(ax-10,ay+18,ax+4,ay-8,'#E0A12E',true):arr(ax-10,ay+18,ax+4,ay-8,'#3E9A62');
+    s+='</g>'+R(bx,by,bw,bh,'none','rx="12" stroke="#D2DDE3" stroke-width="2"');
+    s+=T(x+108,y+290,['Pédale en bas','Pédale à mi-course','Pédale en haut'][st.box],16,'#1C2B40','700');
+    /* disques */
+    const dy=y+168,d1=x+230,g=st.gap;
+    s+=L(x+212,dy,d1,dy,'#5A6B7C',10)+R(d1,dy-52,14,104,NAVY,'rx="4"')+R(d1+14+g,dy-44,14,88,TEAL,'rx="4" stroke="#1C2B40" stroke-width="1.5"')+L(d1+28+g,dy,x+356,dy,'#5A6B7C',10);
+    if(st.box===1)s+=`<path d="M${d1+15} ${dy-34} l6 6 -6 6 6 6 -6 6 M${d1+15} ${dy+10} l6 6 -6 6 6 6" stroke="#E0701A" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    s+=T(d1+2,y+92,'Moteur',15,NAVY,'700')+T(x+330,y+92,'Boîte',15,'#23798A','700');
+    const rot=(x0,y0,col,dash)=>`<path d="M${x0-14} ${y0} a14 14 0 1 1 10 13" fill="none" stroke="${col}" stroke-width="3.5" ${dash?'stroke-dasharray="4 4"':''}/><path d="M${x0-7} ${y0+12} l5 3 -1 -7" fill="${col}" stroke="${col}" stroke-width="2"/>`;
+    s+=rot(d1+4,y+238,NAVY);
+    s+=st.box===0?T(x+330,y+246,'arrêt',15,'#9AA5AF','700'):rot(x+330,y+238,'#23798A',st.box===1);
+    /* légende */
+    s+=T(x+20,y+318,st.l1,17,'#1C2B40','700','start')+T(x+20,y+342,st.l2,16,'#3D4F61','400','start');
+    const cw=st.chip[0].length*9+30;s+=R(x+w-cw-16,y+272,cw,30,st.chip[1],'rx="15"')+T(x+w-cw/2-16,y+292,st.chip[0],15,st.chip[2],'700')});
+  return s}
 function blank(){return R(0,0,1200,800,'#FFFFFF')+`<pattern id="dotg" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1.6" fill="#D5DDE3"/></pattern>`+R(0,0,1200,800,'url(#dotg)')}
 const BG=[['blank','Page blanche',blank],['croix','Carrefour en croix',croix],['tee','Carrefour en T',tee],['gir1','Giratoire 1 voie',()=>giratoire(1)],['gir2','Giratoire 2 voies',()=>giratoire(2)],
   ['double','Route à double sens',double],['virage','Virages',virage],['insertion','Insertion sur voie rapide',insertion],['sortie','Sortie de voie rapide',sortie],
   ['creneau','Créneau',creneau],['bataille','Bataille',bataille],['epi','Épi',epi],['ecole','Passage piéton, école',ecole],
-  ['bv5','Boîte 5 vitesses',()=>gear(false)],['bv6','Boîte 6 vitesses',()=>gear(true)],['angles','Rétroviseurs et angles morts',angles]];
+  ['bv5','Boîte 5 vitesses',()=>gear(false)],['bv6','Boîte 6 vitesses',()=>gear(true)],['transmission','Moteur, embrayage, boîte',transmission],['angles','Rétroviseurs et angles morts',angles]];
 const cache={};
 const bgSVG=k=>cache[k]||(cache[k]=(BG.find(b=>b[0]===k)||BG[0])[2]());
 const bgName=k=>(BG.find(b=>b[0]===k)||BG[0])[1];
