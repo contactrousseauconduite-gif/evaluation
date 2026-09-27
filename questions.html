@@ -337,7 +337,7 @@ a.card{text-decoration:none;color:inherit}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -395,8 +395,8 @@ window.RC=(function(){
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
   function backup(){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),el=eleves();
-    if(!ev.length&&!ex.length&&!bi.length&&!el.length){toast('Aucune fiche à sauvegarder');return}
-    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi}));
+    const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve){toast('Aucune fiche à sauvegarder');return}
+    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve}));
     set(K.last,String(Date.now()));check();
     toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length+bi.length} fiche${ev.length+ex.length+bi.length>1?'s':''}`)}
   function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
@@ -405,7 +405,8 @@ window.RC=(function(){
   async function restore(file){
     try{const d=JSON.parse(await file.text());
       const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1);
-      if(!el&&!ev&&!ex&&!bi)throw 0;syncAll();
+      let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
+      if(!el&&!ev&&!ex&&!bi&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
@@ -507,8 +508,25 @@ window.RC=(function(){
   async function fichePdf(html,name){const jpg=await ficheImage(html,2);return new File([jpegPdf(jpg)],name,{type:'application/pdf'})}
   const fileName=(kind,who,date)=>`${kind}-${String(who||'eleve').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve'}-${date||iso(Date.now())}.pdf`;
   function downloadFile(file){const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
+  /* ---------- kilométrage du véhicule (LLD) ---------- */
+  function veh(){try{const o=JSON.parse(get(K.ve));return o&&o.contrat?o:null}catch(e){return null}}
+  function vehSave(o){o.updatedAt=Date.now();set(K.ve,JSON.stringify(o))}
+  const dayOf=s=>{const[y,m,d]=String(s).split('-').map(Number);return Date.UTC(y,m-1,d)/DAY};
+  function addMonths(s,n){const[y,m,d]=s.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+n,1));const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate();t.setUTCDate(Math.min(d,last));return t.toISOString().slice(0,10)}
+  function vehStats(o,todayIso){o=o||veh();if(!o)return null;const c=o.contrat,start=c.debut,end=addMonths(c.debut,+c.duree||0);
+    const s0=dayOf(start),s1=dayOf(end),tot=Math.max(1,s1-s0),allow=+c.km||0,dep=+c.depart||0,today=todayIso||iso(Date.now());
+    const rel=[...(o.releves||[])].sort((a,b)=>a.date.localeCompare(b.date));const last=rel[rel.length-1]||null;
+    const expAt=d=>allow*Math.min(1,Math.max(0,(dayOf(d)-s0)/tot));
+    const r={start,end,allow,dep,tot,rel,last,perMonthContract:allow/(+c.duree||1),expAt,dayOf};
+    if(!last){r.used=0;r.state='none';return r}
+    const el=Math.max(0,dayOf(last.date)-s0);r.used=last.km-dep;r.expected=expAt(last.date);r.ecart=r.used-r.expected;
+    r.state=r.ecart<=allow*.03?'ok':r.ecart<=allow*.07?'warn':'over';
+    if(el>=14){r.rateDay=r.used/el;r.perMonth=r.rateDay*30.44;r.projected=Math.round(r.rateDay*tot);r.over=Math.max(0,r.projected-allow);r.cost=c.prix?r.over*(+String(c.prix).replace(',','.')):null}
+    if(r.projected!=null)r.state=r.projected<=allow?'ok':r.projected<=allow*1.05?'warn':'over';
+    const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
+    const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();
-  return{backup,restore,check,lastText,setToast:f=>{toast=f},
+  return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();

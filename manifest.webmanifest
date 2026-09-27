@@ -79,6 +79,16 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Relever le compteur",
+      "url": "./vehicule.html#releve",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

@@ -315,6 +315,28 @@ a.card{text-decoration:none;color:inherit}
 .shm-fields label:last-child:nth-child(odd){grid-column:1/-1}
 .apps a{white-space:nowrap}
 @media (max-width:440px){.apps{gap:5px}.apps a{font-size:.8rem;padding:7px 4px}.apps a.homeb{padding:6px 10px}}
+
+/* kilométrage (accueil) */
+#veh:empty{display:none}
+.vw{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:14px 16px;margin:0 0 18px;text-decoration:none;color:var(--ink)}
+.vic{flex:none;width:40px;height:40px;border-radius:12px;background:var(--chip);display:grid;place-items:center}
+.vic svg{width:24px;height:24px;fill:none;stroke:var(--tealtext);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.vw .vt{display:flex;flex-direction:column;gap:2px}.vw .vt span{font-size:.85rem;color:var(--muted)}
+.vbox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:0 0 18px}
+.vh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.vh b{display:flex;align-items:center;gap:8px}
+.vst{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.85rem}
+.vst i{font-style:normal;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;color:#fff;font-size:.75rem}
+.vst.ok i{background:#3E9A62}.vst.warn i{background:#C08416}.vst.over i{background:#D84A50}.vst.none i{background:var(--muted)}
+.vbar{position:relative;height:10px;border-radius:5px;background:var(--chip)}
+.vbar i{display:block;height:100%;border-radius:5px;background:var(--teal)}
+.vbar .mark{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;background:var(--ink);transform:translateX(-50%)}
+.vl{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin:8px 0 12px}.vl b{color:var(--ink)}
+.vl .due{color:#9A5B0B;font-weight:700}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .vl .due{color:#E8B25A}}
+:root[data-theme="dark"] .vl .due{color:#E8B25A}
+.vact{display:flex;gap:8px;flex-wrap:wrap}.vact .btn{min-height:44px;padding:10px 14px;font-size:.92rem;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center}
+.vact .btn.go{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
 </style>
 </head>
 <body>
@@ -344,6 +366,7 @@ a.card{text-decoration:none;color:inherit}
     <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></span>
     <span class="ct"><b>Les 100 questions</b><span>Vérifications et premiers secours, pour réviser</span></span></a>
 </div>
+<section id="veh"></section>
 <section class="docs"><h2 class="h2">Documents pour les élèves</h2><div class="block list" id="docs"></div></section>
 <section id="recent"></section>
 <section class="block save"><div><b>Sauvegarde</b><span data-bk-last></span></div>
@@ -354,7 +377,7 @@ a.card{text-decoration:none;color:inherit}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -412,8 +435,8 @@ window.RC=(function(){
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
   function backup(){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),el=eleves();
-    if(!ev.length&&!ex.length&&!bi.length&&!el.length){toast('Aucune fiche à sauvegarder');return}
-    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi}));
+    const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve){toast('Aucune fiche à sauvegarder');return}
+    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve}));
     set(K.last,String(Date.now()));check();
     toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length+bi.length} fiche${ev.length+ex.length+bi.length>1?'s':''}`)}
   function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
@@ -422,7 +445,8 @@ window.RC=(function(){
   async function restore(file){
     try{const d=JSON.parse(await file.text());
       const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1);
-      if(!el&&!ev&&!ex&&!bi)throw 0;syncAll();
+      let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
+      if(!el&&!ev&&!ex&&!bi&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
@@ -524,8 +548,25 @@ window.RC=(function(){
   async function fichePdf(html,name){const jpg=await ficheImage(html,2);return new File([jpegPdf(jpg)],name,{type:'application/pdf'})}
   const fileName=(kind,who,date)=>`${kind}-${String(who||'eleve').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve'}-${date||iso(Date.now())}.pdf`;
   function downloadFile(file){const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
+  /* ---------- kilométrage du véhicule (LLD) ---------- */
+  function veh(){try{const o=JSON.parse(get(K.ve));return o&&o.contrat?o:null}catch(e){return null}}
+  function vehSave(o){o.updatedAt=Date.now();set(K.ve,JSON.stringify(o))}
+  const dayOf=s=>{const[y,m,d]=String(s).split('-').map(Number);return Date.UTC(y,m-1,d)/DAY};
+  function addMonths(s,n){const[y,m,d]=s.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+n,1));const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate();t.setUTCDate(Math.min(d,last));return t.toISOString().slice(0,10)}
+  function vehStats(o,todayIso){o=o||veh();if(!o)return null;const c=o.contrat,start=c.debut,end=addMonths(c.debut,+c.duree||0);
+    const s0=dayOf(start),s1=dayOf(end),tot=Math.max(1,s1-s0),allow=+c.km||0,dep=+c.depart||0,today=todayIso||iso(Date.now());
+    const rel=[...(o.releves||[])].sort((a,b)=>a.date.localeCompare(b.date));const last=rel[rel.length-1]||null;
+    const expAt=d=>allow*Math.min(1,Math.max(0,(dayOf(d)-s0)/tot));
+    const r={start,end,allow,dep,tot,rel,last,perMonthContract:allow/(+c.duree||1),expAt,dayOf};
+    if(!last){r.used=0;r.state='none';return r}
+    const el=Math.max(0,dayOf(last.date)-s0);r.used=last.km-dep;r.expected=expAt(last.date);r.ecart=r.used-r.expected;
+    r.state=r.ecart<=allow*.03?'ok':r.ecart<=allow*.07?'warn':'over';
+    if(el>=14){r.rateDay=r.used/el;r.perMonth=r.rateDay*30.44;r.projected=Math.round(r.rateDay*tot);r.over=Math.max(0,r.projected-allow);r.cost=c.prix?r.over*(+String(c.prix).replace(',','.')):null}
+    if(r.projected!=null)r.state=r.projected<=allow?'ok':r.projected<=allow*1.05?'warn':'over';
+    const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
+    const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();
-  return{backup,restore,check,lastText,setToast:f=>{toast=f},
+  return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
@@ -564,6 +605,16 @@ function render(){
     const right=t==='bi'?(r.ac!=null?`<b>${r.ac}<small>/${r.total||32}</small></b><span>objectifs acquis</span>`:'<span>à compléter</span>'):t==='ex'?`<b>${r.total!=null?fmt(r.total):'–'}<small>/31</small></b><span class="st ${r.status}">${LABEL[r.status]||''}</span>`:
       (()=>{const v=(x.acceptee==='Non'&&r.retPrat)?r.retPrat:r.pratique;return v!=null?`<b>${v}<small> h</small></b><span>pratique prévue</span>`:'<span>à compléter</span>'})();
     return `<a class="row2" href="${{ev:'evaluation.html',ex:'examen.html',bi:'bilan.html'}[t]}?open=${esc(x.id)}"><div><b>${esc(RC.full(x))}</b><span>${{ev:'Évaluation de départ',ex:'Examen blanc',bi:'Bilan de compétences'}[t]}, ${esc(frDate(x.date))}</span></div><div class="sc">${right}</div></a>`}).join('')}</div>`:'';
+  /* kilométrage */
+  const vo=RC.veh(),CAR='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16V11l2-5h10l2 5v5M3 16h18v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1H7v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="13.5" r="1"/><circle cx="16.5" cy="13.5" r="1"/></svg>';
+  const nkm=n=>Math.round(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g,' ');
+  if(!vo)$('#veh').innerHTML=`<a class="vw" href="vehicule.html"><span class="vic">${CAR}</span><span class="vt"><b>Kilométrage de la voiture</b><span>Suivre le rythme de votre location longue durée</span></span></a>`;
+  else{const s=RC.vehStats(vo),today=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+    const ST={ok:['✓','Dans le rythme'],warn:['!','Un peu au-dessus'],over:['!','Au-dessus du contrat'],none:['•','Aucun relevé']}[s.state];
+    $('#veh').innerHTML=`<div class="vbox"><div class="vh"><b><span class="vic">${CAR}</span>Kilométrage, ${esc(vo.contrat.vehicule||'véhicule')}</b><span class="vst ${s.state}"><i aria-hidden="true">${ST[0]}</i>${ST[1]}</span></div>
+      <div class="vbar" role="img" aria-label="${nkm(s.used)} km parcourus sur ${nkm(s.allow)}"><i style="width:${Math.min(100,s.used/s.allow*100)}%"></i><span class="mark" style="left:${Math.min(100,s.expAt(today)/s.allow*100)}%" title="Prévu à ce jour"></span></div>
+      <div class="vl"><span><b>${nkm(s.used)}</b> / ${nkm(s.allow)} km</span>${s.last?(s.due?'<span class="due">Relevé du mois à faire</span>':`<span>Relevé le ${frDate(s.last.date)}</span>`):'<span class="due">Premier relevé à faire</span>'}</div>
+      <div class="vact"><a class="btn go" href="vehicule.html#releve">Relever le compteur</a><a class="btn quiet" href="vehicule.html">Détails</a></div></div>`}
   RC.check();
 }
 $('#docs').innerHTML=RC.DOCS.map((d,i)=>`<div class="doc"><div><b>${esc(d.title)}</b><span>${esc(d.sub)}</span></div><div class="doc-act"><button type="button" class="btn" data-doc-share="${i}">Partager</button><a class="btn quiet" href="${esc(d.url)}" target="_blank" rel="noopener">Ouvrir</a></div></div>`).join('');

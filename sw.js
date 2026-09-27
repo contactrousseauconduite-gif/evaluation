@@ -1,6 +1,6 @@
-const CACHE = 'rc-eval-v13';
+const CACHE = 'rc-eval-v14';
 const FONTS = 'rc-fonts-v1';
-const SHELL = ['./', './index.html', './evaluation.html', './bilan.html', './examen.html', './eleves.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
+const SHELL = ['./', './index.html', './evaluation.html', './bilan.html', './examen.html', './eleves.html', './vehicule.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700;800&display=swap';
 const isFont = url => url.startsWith('https://fonts.googleapis.com/') || url.startsWith('https://fonts.gstatic.com/');
 
