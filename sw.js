@@ -1,4 +1,4 @@
-const CACHE = 'rc-eval-v21';
+const CACHE = 'rc-eval-v22';
 const FONTS = 'rc-fonts-v1';
 const SHELL = ['./', './index.html', './evaluation.html', './bilan.html', './examen.html', './eleves.html', './vehicule.html', './tableau.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700;800&display=swap';

@@ -54,6 +54,7 @@ section.block{background:var(--surface);border:1px solid var(--line);border-radi
 .block h2 .n{display:inline-grid;place-items:center;min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--navy);color:var(--navy-ink);font-size:.85rem;flex:none}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .full{grid-column:1/-1}
+.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid>*,label.f{min-width:0}input,select,textarea{min-width:0;box-sizing:border-box}details *{box-sizing:border-box}
 label.f,.lab{display:flex;flex-direction:column;gap:4px;font-size:.84rem;color:var(--muted);font-weight:700}
 .lab{margin:0 0 6px}
 input[type=text],input[type=date],input[type=tel],input[type=number],textarea{
@@ -212,6 +213,7 @@ details.more{margin-top:12px;border:1px solid var(--line);border-radius:12px;pad
 details.more summary{cursor:pointer;padding:12px 0;font-weight:700;color:var(--tealtext);list-style-position:inside}
 details.more summary small{color:var(--muted);font-weight:400;margin-left:4px}
 details.more[open]{padding-bottom:12px}
+details.more .grid{align-items:end}
 /* tablette en largeur : deux colonnes */
 @media (min-width:1000px){
   main.wide,.bar-in,.apps,.jump{max-width:1240px}
@@ -601,7 +603,6 @@ function renderForm(){
   <section class="block" id="sec-10"><h2><span class="n">10</span>Proposition : volume de formation prévisionnel</h2><div class="grid">
     ${inp('theorie','Théorie (heures)','number','','inputmode="numeric" min="0"')}
     <label class="f">Pratique (heures)<input type="text" id="pratMirror" readonly></label>
-    <p class="fine full">Minimum de 25 h de pratique appliqué par Rousseau Conduite, quel que soit le résultat.</p>
     <div class="full"><div class="lab">Proposition acceptée</div>${single('acceptee',['Oui','Non'])}</div>
     <div class="full" data-retenue ${S.acceptee==='Non'?'':'hidden'}><div class="grid">
       ${inp('retTheo','Retenue : théorie (h)','number','','inputmode="numeric" min="0"')}${inp('retPrat','Retenue : pratique (h)','number','','inputmode="numeric" min="25"')}</div></div>
@@ -623,7 +624,7 @@ function renderForm(){
       <li>Trajectoire : F −4, S 0, B +3 ; observation et orientation : F −1, S 0, B +1 ; regard : B +2, F1 −1, F2 −2, F3 −3</li>
       <li>Émotivité (en général et crispation) : F −1, S 0, B +1</li>
       <li>Résultat faible sous −12, satisfaisant de −12 à +12, bon au-dessus de +12</li>
-      <li>Pratique : 25 h si le résultat est de −12 ou plus, 27 h en dessous ; minimum bloqué à 25 h dans tous les cas</li>
+      <li>Pratique : 25 h si le résultat est de −12 ou plus, 27 h en dessous</li>
       <li>Théorie conseillée : environ 10 h (satisfaisant) ou 13 h (faible), selon l’élève si le résultat est bon</li></ul></details>
   </section>
 
@@ -716,7 +717,7 @@ $('#viewForm').addEventListener('click',e=>{
 
 $('#viewForm').addEventListener('change',e=>{
   if(e.target.dataset.in==='retPrat'&&e.target.value!==''&&+e.target.value<MIN_PRAT){
-    S.retPrat=String(MIN_PRAT);e.target.value=S.retPrat;touch();toast('Minimum de 25 h de pratique')}
+    S.retPrat=String(MIN_PRAT);e.target.value=S.retPrat;touch()}
 });
 
 /* ---------- signatures ---------- */
@@ -846,7 +847,7 @@ ${fsbTable(FSB.hab)}${fsbTable(FSB.comp)}
 ${fsbTable(FSB.perc,`<tr><td>Regard</td><td colspan="3">${['B','F1','F2','F3'].map(x=>`${ck(S.regard===x)} ${x}`).join('&nbsp; ')}</td></tr>`)}${fsbTable(FSB.emo)}</div>
 <div class="sec"><h3>9. Résultat de l’évaluation</h3><div class="res">Positifs <span class="bx">${c.pos}</span> − Négatifs <span class="bx">${c.neg}</span> = Résultat final <span class="bx">${c.res>0?'+':''}${c.res}</span> <span>(résultat ${c.cat})</span></div></div>
 <div class="sec"><h3>10. Proposition : volume de formation prévisionnel</h3><div class="two">
-<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b><p class="fine">Minimum de 25 h de pratique appliqué par Rousseau Conduite.</p>
+<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b>
 Formateur : <b>${esc(S.formateur)}</b><br>N° d’autorisation : <b>${esc(S.autorisation)}</b></div>
 <div>Date : <b>${esc(frDate(S.date))}</b><br>Proposition acceptée : ${ck(S.acceptee==='Oui')} Oui &nbsp; ${ck(S.acceptee==='Non')} Non<br>
 Proposition retenue : théorie <b>${r.t?esc(r.t)+' h':'–'}</b>, pratique <b>${r.p!=null&&r.p!==''?esc(r.p)+' h':'–'}</b></div></div>

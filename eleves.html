@@ -54,6 +54,7 @@ section.block{background:var(--surface);border:1px solid var(--line);border-radi
 .block h2 .n{display:inline-grid;place-items:center;min-width:1.7rem;height:1.7rem;border-radius:50%;background:var(--navy);color:var(--navy-ink);font-size:.85rem;flex:none}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .full{grid-column:1/-1}
+.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid>*,label.f{min-width:0}input,select,textarea{min-width:0;box-sizing:border-box}details *{box-sizing:border-box}
 label.f,.lab{display:flex;flex-direction:column;gap:4px;font-size:.84rem;color:var(--muted);font-weight:700}
 .lab{margin:0 0 6px}
 input[type=text],input[type=date],input[type=tel],input[type=number],textarea{
