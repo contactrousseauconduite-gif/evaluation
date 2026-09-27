@@ -311,7 +311,7 @@ details.more[open]{padding-bottom:12px}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -342,11 +342,11 @@ window.RC=(function(){
     /* garder les noms des fiches à jour */
     [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex,K.bi].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+    [K.ev,K.ex,K.bi,K.de].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
   function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
     [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
     if(ch)set(k,JSON.stringify(recs))})}
-  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id),bi:list(K.bi).filter(x=>x.eleveId===id)});
+  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id),bi:list(K.bi).filter(x=>x.eleveId===id),de:list(K.de).filter(x=>x.eleveId===id)});
 
   /* sélecteur d'élève dans les fiches */
   let onPick=null,onClear=null;
@@ -368,9 +368,9 @@ window.RC=(function(){
   function status(){const n=list(K.ev).length+list(K.ex).length+list(K.bi).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  function backup(){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),el=eleves();
-    const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve){toast('Aucune fiche à sauvegarder');return}
-    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve}));
+  function backup(){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),el=eleves();
+    const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
+    saveFile(`sauvegarde-rousseau-conduite-${iso(Date.now())}.json`,JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de}));
     set(K.last,String(Date.now()));check();
     toast(`Sauvegarde téléchargée : ${el.length} élève${el.length>1?'s':''}, ${ev.length+ex.length+bi.length} fiche${ev.length+ex.length+bi.length>1?'s':''}`)}
   function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
@@ -378,9 +378,9 @@ window.RC=(function(){
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
     try{const d=JSON.parse(await file.text());
-      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1);
+      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1);
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
-      if(!el&&!ev&&!ex&&!bi&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
+      if(!el&&!ev&&!ex&&!bi&&!de&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
@@ -417,7 +417,7 @@ window.RC=(function(){
       <div class="shm-fields grid"></div>
       <div class="seg shm-tu"><button type="button" data-shm-tu="tu">Tutoiement</button><button type="button" data-shm-tu="vous">Vouvoiement</button></div>
       <textarea class="shm-text" rows="11"></textarea><p class="shm-note">Vous pouvez modifier le texte avant de l’envoyer.</p>
-      ${o.attach?`<button type="button" class="shm-att" data-shm-att aria-pressed="true"><span class="box"></span><span><b>Joindre la fiche en PDF</b><small>${esc(o.attach.label)}</small></span></button>`:''}
+      ${o.attach?`<button type="button" class="shm-att" data-shm-att aria-pressed="true"><span class="box"></span><span><b>${esc(o.attach.title||'Joindre la fiche en PDF')}</b><small>${esc(o.attach.label)}</small></span></button>`:''}
       <div class="shm-act"><button type="button" class="btn primary" data-shm-share>Partager</button>${o.tel?`<a class="btn" data-shm-sms href="#">Envoyer par SMS</a>`:''}<button type="button" class="btn" data-shm-copy>Copier</button></div></div>`;
     document.body.appendChild(el);shm=el;document.documentElement.style.overflow='hidden';
     const ta=el.querySelector('.shm-text');
@@ -436,8 +436,8 @@ window.RC=(function(){
         if(o.attach&&att&&att.getAttribute('aria-pressed')==='true'){b.disabled=true;const lab=b.textContent;b.textContent='Préparation du PDF…';
           try{const file=await o.attach.make();
             if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:o.title,text:ta.value})}catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
-            else{downloadFile(file);await copyText(ta.value);toast('PDF téléchargé et message copié : joignez-le à votre message')}}
-          catch(e){toast('Impossible de créer le PDF');shareText(o.title,ta.value)}
+            else{downloadFile(file);await copyText(ta.value);toast((o.attach.kind||'PDF')+' téléchargé et message copié : joignez-le à votre message')}}
+          catch(e){toast('Impossible de créer le fichier');shareText(o.title,ta.value)}
           finally{b.disabled=false;b.textContent=lab}}
         else shareText(o.title,ta.value)}
       else if(b.dataset.shmCopy!=null)toast(await copyText(ta.value)?'Message copié':'Copie impossible ici');
