@@ -421,6 +421,20 @@ window.RC=(function(){
   async function shareText(title,text){
     if(navigator.share){try{await navigator.share({title,text});return}catch(e){if(e&&e.name==='AbortError')return}}
     toast(await copyText(text)?'Message copié : collez-le dans votre messagerie':'Partage impossible ici')}
+  async function shareImages(urls,title){
+    try{const files=await Promise.all(urls.map(async u=>new File([await (await fetch(u)).blob()],u.split('/').pop(),{type:'image/jpeg'})));
+      if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title});return}
+      files.forEach((f,i)=>setTimeout(()=>downloadFile(f),i*400));toast(files.length>1?files.length+' images téléchargées':'Image téléchargée')}
+    catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
+  function shareDoc(d){if(!d.jpg){shareFile(d.url,d.url,d.title);return}
+    const box=document.createElement('div');box.className='shm';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
+    box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(d.title)}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      <p class="shm-note" style="margin:0">Dans quel format envoyer ce document ?</p>
+      <button type="button" class="btn primary" data-f="pdf">En PDF <small style="font-weight:400;opacity:.85">(1 fichier)</small></button>
+      <button type="button" class="btn" data-f="jpg">En image JPEG <small style="font-weight:400;opacity:.85">(${d.jpg.length} image${d.jpg.length>1?'s':''})</small></button></div>`;
+    document.body.appendChild(box);setTimeout(()=>box.querySelector('.shm-x').focus(),40);
+    box.addEventListener('click',e=>{if(e.target===box||e.target.closest('[data-x]')){box.remove();return}const b=e.target.closest('[data-f]');if(!b)return;box.remove();set('rc:fmt',b.dataset.f);
+      if(b.dataset.f==='jpg')shareImages(d.jpg,d.title);else shareFile(d.url,d.url,d.title)})}
   async function shareFile(url,name,title){
     try{if(navigator.canShare){const blob=await (await fetch(url)).blob();const file=new File([blob],name,{type:'application/pdf'});
       if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return}}}
@@ -428,7 +442,7 @@ window.RC=(function(){
     window.open(url,'_blank')}
   let shm=null;
   function openShare(o){
-    closeShare();let tpl=o.templates[0],tu=(get('rc:tu')||'tu')==='tu',edited=false;
+    closeShare();let tpl=o.templates[0],tu=(get('rc:tu')||'tu')==='tu',edited=false,fmt=get('rc:fmt')==='jpg'?'jpg':'pdf';
     const el=document.createElement('div');el.className='shm';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label',o.title);
     const fieldsHTML=t=>(t.fields||[]).map(f=>`<label class="f">${esc(f.label)}<input type="${f.type||'text'}" data-shm-f="${f.k}" value="${esc(f.value||'')}" ${f.ph?`placeholder="${esc(f.ph)}"`:''}></label>`).join('');
     el.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(o.title)}</b><button type="button" class="shm-x" data-shm-close aria-label="Fermer">✕</button></div>
@@ -436,13 +450,15 @@ window.RC=(function(){
       <div class="shm-fields grid"></div>
       <div class="seg shm-tu"><button type="button" data-shm-tu="tu">Tutoiement</button><button type="button" data-shm-tu="vous">Vouvoiement</button></div>
       <textarea class="shm-text" rows="11"></textarea><p class="shm-note">Vous pouvez modifier le texte avant de l’envoyer.</p>
-      ${o.attach?`<button type="button" class="shm-att" data-shm-att aria-pressed="true"><span class="box"></span><span><b>${esc(o.attach.title||'Joindre la fiche en PDF')}</b><small>${esc(o.attach.label)}</small></span></button>`:''}
+      ${o.attach?`<button type="button" class="shm-att" data-shm-att aria-pressed="true"><span class="box"></span><span><b>${esc(o.attach.title||(o.attach.img?'Joindre la fiche':'Joindre la fiche en PDF'))}</b><small>${esc(o.attach.label)}</small></span></button>`:''}
+      ${o.attach&&o.attach.img?`<div class="seg shm-fmt" role="group" aria-label="Format de la pièce jointe"><button type="button" data-shm-fmt="pdf">PDF</button><button type="button" data-shm-fmt="jpg">Image JPEG</button></div>`:''}
       <div class="shm-act"><button type="button" class="btn primary" data-shm-share>Partager</button>${o.tel?`<a class="btn" data-shm-sms href="#">Envoyer par SMS</a>`:''}<button type="button" class="btn" data-shm-copy>Copier</button></div></div>`;
     document.body.appendChild(el);shm=el;document.documentElement.style.overflow='hidden';
     const ta=el.querySelector('.shm-text');
     const vals=()=>Object.fromEntries([...el.querySelectorAll('[data-shm-f]')].map(i=>[i.dataset.shmF,i.value]));
     const sms=()=>{const a=el.querySelector('[data-shm-sms]');if(a)a.href=`sms:${o.tel.replace(/\s/g,'')}?body=${encodeURIComponent(ta.value)}`};
     const regen=()=>{ta.value=tpl.build(tu,vals());edited=false;sms()};
+    const paintFmt=()=>el.querySelectorAll('[data-shm-fmt]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.shmFmt===fmt));paintFmt();
     const paint=()=>{el.querySelector('.shm-fields').innerHTML=fieldsHTML(tpl);el.querySelectorAll('[data-shm-tu]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.shmTu==='tu')===tu));regen()};
     paint();
     el.addEventListener('input',e=>{if(e.target===ta){edited=true;sms()}else if(e.target.dataset.shmF!=null)regen()});
@@ -450,12 +466,13 @@ window.RC=(function(){
       if(b.dataset.shmClose!=null)closeShare();
       else if(b.dataset.shmTu){if(edited&&!confirm('Refaire le message ? Vos modifications seront perdues.'))return;tu=b.dataset.shmTu==='tu';set('rc:tu',tu?'tu':'vous');paint()}
       else if(b.dataset.shmTpl){if(edited&&!confirm('Changer de message ? Vos modifications seront perdues.'))return;tpl=o.templates.find(t=>t.id===b.dataset.shmTpl);el.querySelectorAll('[data-shm-tpl]').forEach(x=>x.setAttribute('aria-pressed',x===b));paint()}
-      else if(b.dataset.shmAtt!=null)b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');
+      else if(b.dataset.shmAtt!=null){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);const g=el.querySelector('.shm-fmt');if(g)g.hidden=!on}
+      else if(b.dataset.shmFmt){fmt=b.dataset.shmFmt;set('rc:fmt',fmt);paintFmt()}
       else if(b.dataset.shmShare!=null){const att=el.querySelector('[data-shm-att]');
-        if(o.attach&&att&&att.getAttribute('aria-pressed')==='true'){b.disabled=true;const lab=b.textContent;b.textContent='Préparation du PDF…';
-          try{const file=await o.attach.make();
+        if(o.attach&&att&&att.getAttribute('aria-pressed')==='true'){b.disabled=true;const lab=b.textContent;const useImg=o.attach.img&&fmt==='jpg';b.textContent=useImg?'Préparation de l’image…':'Préparation du PDF…';
+          try{const file=useImg?await o.attach.img():await o.attach.make();
             if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:o.title,text:ta.value})}catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
-            else{downloadFile(file);await copyText(ta.value);toast((o.attach.kind||'PDF')+' téléchargé et message copié : joignez-le à votre message')}}
+            else{downloadFile(file);await copyText(ta.value);toast((useImg?'Image':(o.attach.kind||'PDF'))+' téléchargé'+(useImg?'e':'')+' et message copié : joignez-le à votre message')}}
           catch(e){toast('Impossible de créer le fichier');shareText(o.title,ta.value)}
           finally{b.disabled=false;b.textContent=lab}}
         else shareText(o.title,ta.value)}
@@ -465,9 +482,10 @@ window.RC=(function(){
     setTimeout(()=>el.querySelector('.shm-x').focus(),50);
   }
   function closeShare(){if(shm){shm.remove();shm=null;document.documentElement.style.overflow=''}}
-  const DOCS=[{url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir'},
-    {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses'},
-    {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à remettre à l’élève lors de l’évaluation de départ'}];
+  const pages=(b,n,pad)=>Array.from({length:n},(_,i)=>`${b}-${pad?String(i+1).padStart(2,'0'):i+1}.jpg`);
+  const DOCS=[{url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-page',2)},
+    {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-page',11,true)},
+    {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à remettre à l’élève lors de l’évaluation de départ',jpg:pages('donnees-page',1)}];
 
   /* ---------- fiche en PDF (sans bibliothèque externe) ---------- */
   const A4W=794,PAD=38,INNER=A4W-2*PAD;
@@ -499,6 +517,7 @@ window.RC=(function(){
     const xref=len;push(`xref\n0 6\n0000000000 65535 f \n${[1,2,3,4,5].map(n=>String(offs[n]).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
     const out=new Uint8Array(len);let o=0;parts.forEach(p=>{out.set(p,o);o+=p.length});return out}
   async function fichePdf(html,name){const jpg=await ficheImage(html,2);return new File([jpegPdf(jpg)],name,{type:'application/pdf'})}
+  async function ficheJpeg(html,name){const jpg=await ficheImage(html,2);return new File([jpg.bytes],name.replace(/\.pdf$/i,'.jpg'),{type:'image/jpeg'})}
   const fileName=(kind,who,date)=>`${kind}-${String(who||'eleve').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve'}-${date||iso(Date.now())}.pdf`;
   function downloadFile(file){const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
   /* ---------- kilométrage du véhicule (LLD) ---------- */
@@ -521,7 +540,7 @@ window.RC=(function(){
   syncAll();
   return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
-    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
+    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
 <script>
@@ -670,7 +689,7 @@ $('#view').addEventListener('click',e=>{
   const t=e.target;
   if(t.closest('#addBtn')){const f=$('#addForm');f.hidden=!f.hidden;if(!f.hidden)f.querySelector('[name=nom]').focus();return}
   if(t.closest('#memoBtn')){const box=document.createElement('div');box.className='shm';box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Partager un document</b><button type="button" class="shm-x" aria-label="Fermer">✕</button></div>${RC.DOCS.map((d,i)=>`<button type="button" class="btn docpick" data-i="${i}"><b>${esc(d.title)}</b><small>${esc(d.sub)}</small></button>`).join('')}</div>`;
-    document.body.appendChild(box);box.addEventListener('click',ev=>{const b=ev.target.closest('.docpick');if(b){const d=RC.DOCS[+b.dataset.i];box.remove();RC.shareFile(d.url,d.url,d.title)}else if(ev.target===box||ev.target.closest('.shm-x'))box.remove()});return}
+    document.body.appendChild(box);box.addEventListener('click',ev=>{const b=ev.target.closest('.docpick');if(b){const d=RC.DOCS[+b.dataset.i];box.remove();RC.shareDoc(d)}else if(ev.target===box||ev.target.closest('.shm-x'))box.remove()});return}
   if(t.closest('#msgBtn')){const e=RC.eleve(cur()),T=RC.T,p=e.prenom||'';
     RC.openShare({title:'Message à '+RC.full(e),tel:e.tel||'',templates:[
       {id:'rappel',label:'Rappel d’examen',fields:[{k:'date',label:'Date de l’examen',type:'date'},{k:'heure',label:'Heure',type:'time'},{k:'lieu',label:'Lieu',ph:'Centre d’examen'}],
