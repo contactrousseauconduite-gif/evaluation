@@ -371,7 +371,7 @@ window.RC=(function(){
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
   async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
@@ -384,6 +384,7 @@ window.RC=(function(){
   async function restore(file){
     try{const d=JSON.parse(await file.text());
       const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1);
+      if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
       if(!el&&!ev&&!ex&&!bi&&!de&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
@@ -592,14 +593,14 @@ const frDate=iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${
 const fmt=n=>String(n).replace('.',',');
 const getP=(o,p)=>p.split('.').reduce((a,k)=>a==null?a:a[k],o);
 const setP=(o,p,v)=>{const ks=p.split('.');let a=o;ks.slice(0,-1).forEach(k=>{a[k]=a[k]||{};a=a[k]});a[ks[ks.length-1]]=v};
-function pro(){try{return JSON.parse(lsGet(LS_PRO))||{}}catch(e){return{}}}
+function pro(){let p={};try{p=JSON.parse(lsGet(LS_PRO))||{}}catch(e){}return{formateur:p.formateur||'Fabien',autorisation:p.autorisation||'A1800300020'}}
 
 function blank(){const p=pro();return{v:1,id:newId(),createdAt:Date.now(),updatedAt:Date.now(),
   nom:'',prenom:'',tel:'',date:todayISO(),numero:'',heures:'',lieu:'',boite:'manuelle',serie:'',
   inst:null,verif:{tech:false,secu:false,secours:false},crit:{},auto:{},bonus:{courtoisie:false,eco:false},
   man1:{type:null,res:null},man2:{type:null,res:null},elim:{on:false,texte:'',list:[]},nonTerm:false,
   forts:'',travail:'',formateur:p.formateur||'',autorisation:p.autorisation||'',sig:{formateur:null,eleve:null}}}
-function normalize(o){const b=blank(),r=Object.assign(b,o||{});['verif','crit','auto','bonus','man1','man2','elim','sig'].forEach(k=>r[k]=Object.assign({},b[k],r[k]||{}));if(!Array.isArray(r.elim.list))r.elim.list=[];return r}
+function normalize(o){const b=blank(),r=Object.assign(b,o||{});['verif','crit','auto','bonus','man1','man2','elim','sig'].forEach(k=>r[k]=Object.assign({},b[k],r[k]||{}));if(!Array.isArray(r.elim.list))r.elim.list=[];{const q=pro();if(!r.formateur&&q.formateur)r.formateur=q.formateur;if(!r.autorisation&&q.autorisation)r.autorisation=q.autorisation}return r}
 let S;try{S=JSON.parse(lsGet(LS_DRAFT))}catch(e){S=null}
 S=(S&&S.v===1)?normalize(S):blank();
 
