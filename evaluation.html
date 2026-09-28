@@ -870,7 +870,7 @@ function ornikarText(tu){const T=RC.T,c=compute(),f=S.fsb,p=S.prenom,V=(v,t)=>T(
     tv.length?'':null,tv.length?V('Ce que nous allons travailler ensemble :','Ce qu’on va travailler ensemble :'):null,
     ...tv.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;')),'',
     h?`Le volume prévu est de ${h} heures de conduite${(r.t||S.theorie)?` et ${r.t||S.theorie} heures de théorie`:''}. ${code}`:code,
-    '','À très vite pour la suite !','Rousseau Conduite'].filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}
+    '','À très vite pour la suite !','Fabien','Rousseau Conduite'].filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}
 function shareOrnikar(){RC.openShare({title:'Commentaire pour Ornikar',templates:[{id:'ornikar',label:'Commentaire Ornikar',build:tu=>ornikarText(tu)}]})}
 function shareBilan(){const T=RC.T;
   RC.openShare({title:'Bilan de l’évaluation de départ',tel:S.tel,attach:{label:'Évaluation de départ de '+nomComplet(),make:()=>RC.fichePdf(ficheHTML(false),RC.fileName('evaluation-depart',nomComplet(),S.date)),img:()=>RC.ficheJpeg(ficheHTML(false),RC.fileName('evaluation-depart',nomComplet(),S.date))},templates:[{id:'bilan',label:'Bilan',build:tu=>{
@@ -881,7 +881,7 @@ function shareBilan(){const T=RC.T;
       h!=null?`Je ${T(tu,'te','vous')} propose une formation de ${h} h de conduite${S.theorie?` et ${S.theorie} h de théorie`:''}.`:null,
       S.acceptee==='Non'&&(r.t||r.p)?`Nous avons retenu ensemble ${r.p||h} h de conduite${r.t?` et ${r.t} h de théorie`:''}.`:null,
       `Ce volume est une estimation : il pourra évoluer selon ${T(tu,'ta','votre')} progression.`,
-      '','À très vite sur la route !','Rousseau Conduite'].filter(x=>x!==null).join('\n')}}]})}
+      '','À très vite sur la route !','Fabien','Rousseau Conduite'].filter(x=>x!==null).join('\n')}}]})}
 async function copySummary(){const t=summary();
   try{await navigator.clipboard.writeText(t);toast('Résumé copié')}
   catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();

@@ -710,12 +710,12 @@ $('#view').addEventListener('click',e=>{
         `Petit rappel : ${T(tu,'ton','votre')} examen du permis a lieu le ${f.date?RC.frDate(f.date):'[date]'}${f.heure?` à ${f.heure.replace(':','h').replace(/^0/,'')}`:''}${f.lieu?` (${f.lieu})`:''}.`,
         `${T(tu,'Pense','Pensez')} à ${T(tu,'ta','votre')} pièce d’identité en cours de validité, à ${T(tu,'ta','votre')} convocation et, si besoin, à ${T(tu,'tes','vos')} lunettes ou lentilles.`,
         `${T(tu,'Révise','Révisez')} bien les vérifications et les premiers secours : ce sont 3 points faciles à gagner.`,
-        `${T(tu,'Arrive','Arrivez')} un peu en avance pour aborder l’examen sereinement.`,'','Bonne chance, je crois en '+T(tu,'toi','vous')+' !','Rousseau Conduite'].join('\n')},
+        `${T(tu,'Arrive','Arrivez')} un peu en avance pour aborder l’examen sereinement.`,'','Bonne chance, je crois en '+T(tu,'toi','vous')+' !','Fabien','Rousseau Conduite'].join('\n')},
       {id:'bravo',label:'Félicitations',build:tu=>[`Bonjour${p?' '+p:''},`,'',
         `Félicitations pour ${T(tu,'ton','votre')} permis !`,
         `Ce fut un plaisir de ${T(tu,'t’accompagner','vous accompagner')}. ${T(tu,'N’oublie','N’oubliez')} pas le disque « A » à l’arrière du véhicule et les règles du permis probatoire.`,
-        `Si ${T(tu,'tu as','vous avez')} apprécié la formation, un petit avis me ferait très plaisir.`,'','Bonne route et prudence !','Rousseau Conduite'].join('\n')},
-      {id:'libre',label:'Message libre',build:tu=>[`Bonjour${p?' '+p:''},`,'','','Rousseau Conduite'].join('\n')}]});return}
+        `Si ${T(tu,'tu as','vous avez')} apprécié la formation, un petit avis me ferait très plaisir.`,'','Bonne route et prudence !','Fabien','Rousseau Conduite'].join('\n')},
+      {id:'libre',label:'Message libre',build:tu=>[`Bonjour${p?' '+p:''},`,'','','Fabien','Rousseau Conduite'].join('\n')}]});return}
   if(t.closest('#editBtn')){editing=true;renderDossier(cur());return}
   if(t.closest('#cancelEdit')){editing=false;renderDossier(cur());return}
   const sb=t.closest('[data-boite] button');if(sb){sb.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===sb));return}

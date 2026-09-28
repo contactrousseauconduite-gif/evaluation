@@ -840,7 +840,7 @@ function shareBilan(){const T=RC.T,el=RC.eleve(S.eleveId);
       todo.length?`À travailler en priorité : ${todo.join(' ; ')}.`:null,
       c.plus!=null?`Heures de conduite complémentaires estimées : ${fmt(c.plus)} h${c.faites?` (soit ${fmt(c.totalH)} h au total avec ${T(tu,'tes','vos')} ${fmt(c.faites)} h déjà faites)`:''}.`:null,
       S.forts?`Points forts : ${S.forts}`:null,S.travail?`Conseils : ${S.travail}`:null,
-      '',`Bienvenue chez Rousseau Conduite, à très vite pour la suite !`,'Rousseau Conduite']
+      '',`Bienvenue chez Rousseau Conduite, à très vite pour la suite !`,'Fabien','Rousseau Conduite']
       .filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}}]})}
 
 function ficheHTML(autoPrint){

@@ -857,7 +857,7 @@ function shareBilan(){const T=RC.T,el=RC.eleve(S.eleveId);
       forts.length?`Points forts : ${forts.join(', ')}.`:null,
       trav.length?`À travailler : ${trav.join(', ')}.`:null,
       S.forts?`Observations : ${S.forts}`:null,S.travail?`Conseils : ${S.travail}`:null,
-      '',c.status==='favorable'?`${T(tu,'Continue','Continuez')} comme ça !`:'On en reparle à la prochaine leçon.','Rousseau Conduite']
+      '',c.status==='favorable'?`${T(tu,'Continue','Continuez')} comme ça !`:'On en reparle à la prochaine leçon.','Fabien','Rousseau Conduite']
       .filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}}]})}
 async function copySummary(){const t=summary();
   try{await navigator.clipboard.writeText(t);toast('Résumé copié')}

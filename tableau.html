@@ -974,7 +974,7 @@ async function pngFile(){const c=await renderBoard(1.6,true);const blob=await ne
 function share(){const e=RC.eleve(B.eleveId),T=RC.T,p=e&&e.prenom;
   RC.openShare({title:'Partager le schéma',tel:(e&&e.tel)||'',attach:{title:'Joindre le schéma en image',kind:'Image',label:(B.title||TB.bgName(B.bg))+', image PNG',make:pngFile},templates:[{id:'sch',label:'Schéma',build:tu=>
     [`Bonjour${p?' '+p:''},`,'',`Voici le schéma${B.title||B.bg!=='blank'?` « ${B.title||TB.bgName(B.bg)} »`:''} vu ensemble pendant la leçon.`,
-     `${T(tu,'Garde-le','Gardez-le')} pour ${T(tu,'le revoir','le revoir')} avant la prochaine leçon.`,'','Rousseau Conduite'].join('\n')}]})}
+     `${T(tu,'Garde-le','Gardez-le')} pour ${T(tu,'le revoir','le revoir')} avant la prochaine leçon.`,'','Fabien','Rousseau Conduite'].join('\n')}]})}
 
 /* ---------- démarrage ---------- */
 (function(){const qp=new URLSearchParams(location.search),o=qp.get('open'),el=qp.get('eleve');
