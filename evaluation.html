@@ -638,6 +638,7 @@ function renderForm(){
     <button type="button" class="btn" id="export">Télécharger en PDF</button>
     <button type="button" class="btn" id="print">Imprimer ou PDF</button>
     <button type="button" class="btn" id="copy">Partager le bilan</button>
+    <button type="button" class="btn" id="ornikar">Commentaire Ornikar</button>
     <button type="button" class="btn quiet" id="new">Nouvelle évaluation</button>
   </div></aside>`;
   document.querySelectorAll('canvas.pad').forEach(initPad);
@@ -713,6 +714,7 @@ $('#viewForm').addEventListener('click',e=>{
     case 'save':saveCurrent();break;
     case 'export':exportFiche();break;
     case 'copy':shareBilan();break;
+    case 'ornikar':shareOrnikar();break;
     case 'print':printFiche();break;
     case 'new':
       if((S.prenom||S.nom||c.ans)&&!isSaved()&&!confirm('Cette évaluation n’est pas enregistrée. Commencer une nouvelle fiche quand même ?'))break;
@@ -793,6 +795,51 @@ function summary(){const c=compute(),h=pratique(c),r=retenue(c);
 Résultat : ${c.pos} positifs, ${c.neg} négatifs, résultat final ${c.res>0?'+':''}${c.res} (${c.cat})
 Proposition : ${S.theorie?S.theorie+' h de théorie, ':''}${h!=null?h+' h de pratique':'pratique non définie'}
 Proposition acceptée : ${S.acceptee||'non renseigné'}${S.acceptee==='Non'&&(r.t||r.p)?`\nProposition retenue : ${r.t||0} h de théorie, ${r.p||0} h de pratique`:''}${S.formateur?'\nFormateur : '+S.formateur:''}`}
+function ornikarText(tu){const T=RC.T,c=compute(),f=S.fsb,p=S.prenom,V=(v,t)=>T(tu,t,v);
+  const B=k=>f[k]==='B',weak=k=>f[k]==='F'||f[k]==='S';
+  const forts=[];
+  if(B('inst'))forts.push(V('vous vous installez correctement au poste de conduite','tu t’installes correctement au poste de conduite'));
+  if(B('dem')&&B('vol'))forts.push(V('vous maîtrisez bien le démarrage, l’arrêt et le maniement du volant','tu maîtrises bien le démarrage, l’arrêt et le maniement du volant'));
+  else{if(B('dem'))forts.push(V('vous maîtrisez bien le démarrage et l’arrêt','tu maîtrises bien le démarrage et l’arrêt'));if(B('vol'))forts.push(V('vous maniez bien le volant','tu manies bien le volant'))}
+  if(B('compr')&&B('mem'))forts.push(V('vous comprenez vite les explications et vous les retenez bien','tu comprends vite les explications et tu les retiens bien'));
+  else{if(B('compr'))forts.push(V('vous comprenez vite les explications','tu comprends vite les explications'));if(B('mem'))forts.push(V('vous retenez bien les étapes pour démarrer et s’arrêter','tu retiens bien les étapes pour démarrer et s’arrêter'))}
+  if(B('traj'))forts.push(V('votre trajectoire est déjà précise','ta trajectoire est déjà précise'));
+  if(B('obs'))forts.push(V('vous repérez bien les indices importants','tu repères bien les indices importants'));
+  if(B('orient'))forts.push(V('vous suivez les directions sans erreur','tu suis les directions sans erreur'));
+  if(S.regard==='B')forts.push(V('votre regard porte loin et reste mobile','ton regard porte loin et reste mobile'));
+  if((f.gen==='B'||f.gen==='S')&&f.crisp==='B')forts.push(V('vous avez gardé votre calme tout au long de la leçon','tu as gardé ton calme tout au long de la leçon'));
+  const VN={direction:'la direction',boite:'la boîte de vitesses',embrayage:'l’embrayage',freinage:'le freinage'};
+  const knows=VEH.filter(([k])=>S.veh[k]==='Oui').map(([k])=>k),unk=VEH.filter(([k])=>S.veh[k]==='Non').map(([k])=>k);
+  const listFr=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' et '+a[a.length-1];
+  const du=k=>({direction:'de la direction',boite:'de la boîte de vitesses',embrayage:'de l’embrayage',freinage:'du freinage'}[k]);
+  let know=knows.length?V('vous connaissez déjà le rôle ','tu connais déjà le rôle ')+listFr(knows.map(du)):null;
+  const trav=[],tp=[];
+  if(weak('inst'))trav.push(4,V('l’installation : réglez dans l’ordre le siège, le dossier et les rétroviseurs, puis attachez votre ceinture','l’installation : règle dans l’ordre le siège, le dossier et les rétroviseurs, puis attache ta ceinture'));
+  if(weak('dem'))trav.push(2,V('le démarrage et l’arrêt : dosez l’accélérateur et relâchez l’embrayage en douceur jusqu’au point de patinage','le démarrage et l’arrêt : dose l’accélérateur et relâche l’embrayage en douceur jusqu’au point de patinage'));
+  if(weak('vol'))trav.push(3,V('le volant : regardez d’abord là où vous voulez aller, puis tournez en gestes souples','le volant : regarde d’abord là où tu veux aller, puis tourne en gestes souples'));
+  if(weak('compr')||weak('mem'))trav.push(8,V('les étapes du démarrage et de l’arrêt : révisez-les dans l’ordre, elles deviendront vite automatiques','les étapes du démarrage et de l’arrêt : révise-les dans l’ordre, elles deviendront vite automatiques'));
+  if(weak('traj'))trav.push(1,V('la trajectoire : regardez loin devant, là où vous voulez aller. La voiture suit le regard','la trajectoire : regarde loin devant, là où tu veux aller. La voiture suit le regard'));
+  if(weak('obs'))trav.push(6,V('l’observation : contrôlez vos rétroviseurs avant chaque ralentissement ou changement de direction','l’observation : contrôle tes rétroviseurs avant chaque ralentissement ou changement de direction'));
+  if(weak('orient'))trav.push(7,V('l’orientation : anticipez la direction à prendre et pensez au clignotant','l’orientation : anticipe la direction à prendre et pense au clignotant'));
+  if(S.regard==='F1')trav.push(5,V('le regard : gardez-le mobile et regardez bien sur les côtés aux intersections','le regard : garde-le mobile et regarde bien sur les côtés aux intersections'));
+  if((S.regard==='F2'||S.regard==='F3')&&!weak('traj'))trav.push(5,V('le regard : portez-le plus loin devant pour anticiper','le regard : porte-le plus loin devant pour anticiper'));
+  if(f.gen==='F'||f.crisp==='F'||f.crisp==='S')trav.push(9,V('la détente : relâchez les épaules et les mains sur le volant, l’aisance viendra avec les heures','la détente : relâche les épaules et les mains sur le volant, l’aisance viendra avec les heures'));
+  if(unk.includes('boite'))trav.push(10,V('la boîte de vitesses : revoyez la position des vitesses, nous travaillerons les changements de rapport en leçon','la boîte de vitesses : revois la position des vitesses, on travaillera les changements de rapport en leçon'));
+  const oth=unk.filter(k=>k!=='boite');if(oth.length)trav.push(11,'le rôle '+listFr(oth.map(du))+V(' : nous le reverrons ensemble en début de leçon',' : on le reverra ensemble en début de leçon'));
+  const TR=[];for(let q=0;q<trav.length;q+=2)TR.push([trav[q],trav[q+1]]);TR.sort((a,b)=>a[0]-b[0]);const tv=TR.slice(0,5).map(x=>x[1]);
+  const res={bon:V('Votre évaluation de départ est bonne, c’est un très bon début.','Ton évaluation de départ est bonne, c’est un très bon début.'),
+    satisfaisant:V('Votre évaluation de départ est satisfaisante.','Ton évaluation de départ est satisfaisante.'),
+    faible:V('Votre évaluation montre qu’il reste des bases à construire, c’est normal au début : nous allons avancer pas à pas.','Ton évaluation montre qu’il reste des bases à construire, c’est normal au début : on va avancer pas à pas.')}[c.cat];
+  const r=retenue(c),h=r.p||pratique(c);
+  const up=x=>x.charAt(0).toUpperCase()+x.slice(1);
+  const pf=[...forts,know].filter(Boolean),code=V('Pensez à avancer le code en parallèle, ça vous aidera beaucoup sur la route.','Pense à avancer le code en parallèle, ça t’aidera beaucoup sur la route.');
+  return [`Bonjour${p?' '+p:''},`,'',`Merci pour cette première heure. ${c.ans?res:''}`.trim(),'',
+    ...(pf.length>2?[V('Vos points forts :','Tes points forts :'),...pf.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;'))]:pf.length?[`${V('Vos points forts','Tes points forts')} : ${pf.join(' et ')}.`]:[]),
+    tv.length?'':null,tv.length?V('Ce que nous allons travailler ensemble :','Ce qu’on va travailler ensemble :'):null,
+    ...tv.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;')),'',
+    h?`Le volume prévu est de ${h} heures de conduite${(r.t||S.theorie)?` et ${r.t||S.theorie} heures de théorie`:''}. ${code}`:code,
+    '','À très vite pour la suite !','Rousseau Conduite'].filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}
+function shareOrnikar(){RC.openShare({title:'Commentaire pour Ornikar',templates:[{id:'ornikar',label:'Commentaire Ornikar',build:tu=>ornikarText(tu)}]})}
 function shareBilan(){const T=RC.T;
   RC.openShare({title:'Bilan de l’évaluation de départ',tel:S.tel,attach:{label:'Évaluation de départ de '+nomComplet(),make:()=>RC.fichePdf(ficheHTML(false),RC.fileName('evaluation-depart',nomComplet(),S.date))},templates:[{id:'bilan',label:'Bilan',build:tu=>{
     const c=compute(),h=pratique(c),r=retenue(c),p=S.prenom;
