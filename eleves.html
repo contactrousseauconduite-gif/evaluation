@@ -435,6 +435,19 @@ window.RC=(function(){
     document.body.appendChild(box);setTimeout(()=>box.querySelector('.shm-x').focus(),40);
     box.addEventListener('click',e=>{if(e.target===box||e.target.closest('[data-x]')){box.remove();return}const b=e.target.closest('[data-f]');if(!b)return;box.remove();set('rc:fmt',b.dataset.f);
       if(b.dataset.f==='jpg')shareImages(d.jpg,d.title);else shareFile(d.url,d.url,d.title)})}
+  function pickFormat(title,sub,jpgNote){return new Promise(res=>{const box=document.createElement('div');box.className='shm';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
+    box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(title)}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      <p class="shm-note" style="margin:0">${esc(sub||'Dans quel format ?')}</p>
+      <button type="button" class="btn primary" data-f="pdf">En PDF <small style="font-weight:400;opacity:.85">(1 fichier)</small></button>
+      <button type="button" class="btn" data-f="jpg">En image JPEG <small style="font-weight:400;opacity:.85">(${esc(jpgNote||'1 image')})</small></button></div>`;
+    document.body.appendChild(box);setTimeout(()=>box.querySelector('.shm-x').focus(),40);
+    const done=v=>{box.remove();if(v)set('rc:fmt',v);res(v)};
+    box.addEventListener('click',e=>{if(e.target===box||e.target.closest('[data-x]')){done(null);return}const b=e.target.closest('[data-f]');if(b)done(b.dataset.f)});
+    box.addEventListener('keydown',e=>{if(e.key==='Escape')done(null)})})}
+  async function downloadFiche(html,name,btn){const f=await pickFormat('Télécharger la fiche','Dans quel format enregistrer la fiche ?');if(!f)return;
+    const lab=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent=f==='jpg'?'Préparation de l’image…':'Préparation du PDF…'}
+    try{downloadFile(f==='jpg'?await ficheJpeg(html,name):await fichePdf(html,name));toast(f==='jpg'?'Fiche téléchargée en image JPEG':'Fiche PDF téléchargée')}
+    catch(e){toast('Impossible de créer le fichier')}finally{if(btn){btn.disabled=false;btn.textContent=lab}}}
   async function shareFile(url,name,title){
     try{if(navigator.canShare){const blob=await (await fetch(url)).blob();const file=new File([blob],name,{type:'application/pdf'});
       if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return}}}
@@ -540,7 +553,7 @@ window.RC=(function(){
   syncAll();
   return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
-    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
+    setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
 <script>
