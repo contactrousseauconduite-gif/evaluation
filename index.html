@@ -717,7 +717,11 @@ function parseICS(text){const lines=String(text).replace(/\r\n?/g,'\n').split('\
     else if(name==='SUMMARY')cur.title=unesc(val);else if(name==='LOCATION')cur.loc=unesc(val);else if(name==='DESCRIPTION')cur.desc=unesc(val);
     else if(name==='STATUS')cur.status=val.trim().toUpperCase()});
   return ev.filter(e=>e.status!=='CANCELLED').sort((a,b)=>a.start-b.start)}
-function matchEleve(e){const txt=RC.norm([e.title,e.desc].join(' '));if(!txt)return null;const l=RC.eleves();
+function parseTitle(t){t=String(t||'').trim();const m=t.match(/^(.*?)\s+avec\s+([A-ZÀ-ÖØ-Ý].+)$/);if(!m)return{type:t,who:''};
+  const who=m[2].trim(),n=who.match(/^(.+?)\s+([A-ZÀ-ÖØ-Ý])\.?$/);return{type:m[1].trim(),who,prenom:n?n[1]:who,ini:n?n[2]:''}}
+function matchEleve(e){const pt=parseTitle(e.title);if(pt.prenom){const l=RC.eleves(),P=RC.norm(pt.prenom);
+    const c=l.filter(x=>RC.norm(x.prenom)===P&&(!pt.ini||!x.nom||RC.norm(x.nom).startsWith(RC.norm(pt.ini))));if(c.length===1)return c[0]}
+const txt=RC.norm([e.title,e.desc].join(' '));if(!txt)return null;const l=RC.eleves();
   let m=l.find(x=>x.nom&&x.prenom&&txt.includes(RC.norm(x.prenom))&&txt.includes(RC.norm(x.nom)));
   if(!m){const c=l.filter(x=>x.prenom&&RC.norm(x.prenom).length>2&&txt.includes(RC.norm(x.prenom)));if(c.length===1)m=c[0]}
   return m||null}
@@ -738,14 +742,18 @@ function toastL(m){const t=document.getElementById('toast');if(!t)return;t.textC
 function render(){const url=get(K_URL);
   if(!url){box.innerHTML=`<button type="button" class="lsetup" data-l-setup><span class="vic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><span class="vt"><b>Mes leçons Ornikar</b><span>Afficher le planning du jour grâce au lien d’agenda Ornikar</span></span></button>`;return}
   const all=parseICS(get(K_DATA)||''),now=Date.now(),t0=dayKey(new Date()),lim=t0+8*864e5;
-  const up=all.filter(e=>(e.end||e.start)>=now-30*6e4&&e.start.getTime()<lim);
+  const up0=all.filter(e=>(e.end||e.start)>=now-30*6e4&&e.start.getTime()<lim),up=[];
+  up0.forEach(e=>{const l=up[up.length-1];if(l&&l.title===e.title&&l.end&&e.start&&Math.abs(l.end-e.start)<6e4&&dayKey(l.start)===dayKey(e.start)){l.end=e.end;l.n=(l.n||1)+1}else up.push(Object.assign({},e))});
   const at=+get(K_AT)||0;
   const groups={};up.forEach(e=>{const k=dayKey(e.start);(groups[k]=groups[k]||[]).push(e)});
   const keys=Object.keys(groups).map(Number).sort((a,b)=>a-b);
   const todayHas=keys.includes(t0);
-  const row=e=>{const el=matchEleve(e);return `<div class="lrow"><div class="lt"><b>${hm(e.start)}</b>${e.end?`<small>${hm(e.end)}</small>`:''}</div>
-    <div class="ld"><b>${esc(el?RC.full(el):(e.title||'Leçon'))}</b>${el&&e.title?`<small>${esc(e.title)}</small>`:''}${e.loc?`<small>${esc(e.loc)}</small>`:''}</div>
-    ${el?`<a class="btn quiet lbtn" href="eleves.html#e=${esc(el.id)}">Dossier</a>`:''}</div>`};
+  const dur=e=>{if(!e.end)return '';const m=Math.round((e.end-e.start)/6e4);return m%60?`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`:`${m/60} h`};
+  const cleanLoc=l=>String(l||'').replace(/\s+,/g,',').replace(/\s{2,}/g,' ').trim();
+  const row=e=>{const el=matchEleve(e),pt=parseTitle(e.title),name=el?RC.full(el):(pt.who||e.title||'Leçon'),sub=[pt.who?pt.type:'',dur(e)].filter(Boolean).join(' · ');
+    return `<div class="lrow"><div class="lt"><b>${hm(e.start)}</b>${e.end?`<small>${hm(e.end)}</small>`:''}</div>
+    <div class="ld"><b>${esc(name)}</b>${sub?`<small>${esc(sub)}</small>`:''}${e.loc?`<small>${esc(cleanLoc(e.loc))}</small>`:''}</div>
+    ${el?`<a class="btn quiet lbtn" href="eleves.html#e=${esc(el.id)}">Dossier</a>`:pt.prenom?`<button type="button" class="btn quiet lbtn" data-l-new="${esc(pt.prenom)}" data-l-ini="${esc(pt.ini||'')}">Créer le dossier</button>`:''}</div>`};
   box.innerHTML=`<div class="vbox lbox"><div class="lhead"><b>Mes leçons</b><span class="lat">${busy?'Mise à jour…':at?`Mis à jour à ${hm(new Date(at))}`:''}</span>
       <button type="button" class="lic" data-l-refresh aria-label="Mettre à jour">⟳</button><button type="button" class="lic" data-l-setup aria-label="Réglages">⚙</button></div>
     ${!get(K_DATA)?`<p class="lempty">${busy?'Lecture de l’agenda Ornikar…':'Pas encore de planning : touchez ⟳.'}</p>`:
@@ -781,7 +789,8 @@ function setup(){const cur=get(K_URL)||'';const m=document.createElement('div');
     if(!/BEGIN:VCALENDAR/i.test(txt)){show(false,'Ce fichier n’est pas un agenda .ics.');return}
     set(K_DATA,txt);set(K_AT,String(Date.now()));if(!get(K_URL))set(K_URL,'fichier');render();const n=parseICS(txt).length;show(true,`<b>✓ Planning importé :</b> ${n} leçon${n>1?'s':''}.`)});
   setTimeout(()=>m.querySelector('#icsUrl').focus(),60)}
-box.addEventListener('click',e=>{if(e.target.closest('[data-l-setup]'))setup();if(e.target.closest('[data-l-refresh]'))refresh(false)});
+box.addEventListener('click',e=>{const nb=e.target.closest('[data-l-new]');if(nb){const el=RC.addEleve({prenom:nb.dataset.lNew,nom:'',boite:'manuelle',notes:nb.dataset.lIni?`Nom à compléter (Ornikar : ${nb.dataset.lIni}.)`:''});location.href='eleves.html#e='+el.id;return}
+  if(e.target.closest('[data-l-setup]'))setup();if(e.target.closest('[data-l-refresh]'))refresh(false)});
 render();if(get(K_URL)&&get(K_URL)!=='fichier')refresh(true);
 addEventListener('pageshow',e=>{if(e.persisted)render()});
 window.__ics={parseICS};
