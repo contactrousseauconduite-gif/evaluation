@@ -1,4 +1,4 @@
-const CACHE = 'rc-eval-v29';
+const CACHE = 'rc-eval-v30';
 const FONTS = 'rc-fonts-v1';
 const SHELL = ['./', './index.html', './evaluation.html', './bilan.html', './examen.html', './eleves.html', './vehicule.html', './tableau.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png', './memo-page-1.jpg', './memo-page-2.jpg', './questions-page-01.jpg', './questions-page-02.jpg', './questions-page-03.jpg', './questions-page-04.jpg', './questions-page-05.jpg', './questions-page-06.jpg', './questions-page-07.jpg', './questions-page-08.jpg', './questions-page-09.jpg', './questions-page-10.jpg', './questions-page-11.jpg', './donnees-page-1.jpg'];
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700;800&display=swap';
@@ -30,6 +30,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  // Autres sites (agenda Ornikar…) : toujours en direct, jamais gardés en cache.
+  if (new URL(req.url).origin !== self.location.origin && !isFont(req.url)) return;
 
   // Polices : d'abord celles enregistrées sur l'appareil, sinon internet (puis on les garde).
   if (isFont(req.url)) {

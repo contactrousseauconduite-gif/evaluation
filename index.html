@@ -338,6 +338,24 @@ a.card{text-decoration:none;color:inherit}
 :root[data-theme="dark"] .vl .due{color:#E8B25A}
 .vact{display:flex;gap:8px;flex-wrap:wrap}.vact .btn{min-height:44px;padding:10px 14px;font-size:.92rem;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center}
 .vact .btn.go{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+
+/* mes leçons */
+#lessons:empty{display:none}
+.lsetup{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:14px 16px;margin:0 0 14px;color:var(--ink);cursor:pointer;font:inherit}
+.lsetup .vt{display:flex;flex-direction:column;gap:2px}.lsetup .vt span{font-size:.85rem;color:var(--muted)}
+.lbox{margin-bottom:14px}
+.lhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}.lhead b{font-family:var(--display);font-size:1.05rem;flex:1}
+.lat{font-size:.78rem;color:var(--muted)}
+.lic{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;font-size:1.05rem}
+.lday{margin:12px 0 4px;font-weight:700;color:var(--tealtext);font-size:.88rem}
+.lrow{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.lday+.lrow{border-top:0}
+.lt{display:flex;flex-direction:column;min-width:3.4rem;font-variant-numeric:tabular-nums}.lt b{font-family:var(--display);font-size:1.05rem}.lt small{color:var(--muted);font-size:.78rem}
+.ld{flex:1;min-width:0;display:flex;flex-direction:column}.ld b{overflow-wrap:anywhere}.ld small{color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbtn{min-height:40px;padding:8px 12px;font-size:.85rem;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center}
+.lempty{color:var(--muted);margin:4px 0;font-size:.9rem}
+.lres{border-radius:12px;padding:10px 12px;font-size:.9rem}.lres.ok{background:#E3F3E8;color:#23603A}.lres.ko{background:#FFF4D6;color:#5C4300}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lres.ok{background:#15321F;color:#9FE0B4}:root:not([data-theme="light"]) .lres.ko{background:#3A3113;color:#F7E3A6}}
+:root[data-theme="dark"] .lres.ok{background:#15321F;color:#9FE0B4}:root[data-theme="dark"] .lres.ko{background:#3A3113;color:#F7E3A6}
 </style>
 </head>
 <body>
@@ -350,6 +368,7 @@ a.card{text-decoration:none;color:inherit}
 <div class="bk-act"><button type="button" class="btn" data-bk-now>Sauvegarder maintenant</button><button type="button" class="btn quiet" data-bk-later>Plus tard</button></div></div>
 <div class="hello"><h1 id="hello">Bonjour</h1><p id="today"></p></div>
 <div id="resume"></div>
+<section id="lessons"></section>
 <div class="choices">
   <a class="choice" href="evaluation.html">
     <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12l2 2 4-4.5M8.5 17.5h7"/></svg></span>
@@ -440,7 +459,7 @@ window.RC=(function(){
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
   async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
@@ -453,6 +472,7 @@ window.RC=(function(){
   async function restore(file){
     try{const d=JSON.parse(await file.text());
       const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1);
+      if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
       if(!el&&!ev&&!ex&&!bi&&!de&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
@@ -667,6 +687,104 @@ addEventListener('pageshow',render);
 render();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{if(navigator.onLine&&r.active)r.active.postMessage('fonts')}).catch(()=>{}));
+})();
+</script>
+<script>
+(function(){
+/* Mes leçons : lecture du lien d'agenda Ornikar (.ics), gardé uniquement sur cet appareil */
+const K_URL='rc:ics:url',K_DATA='rc:ics:data',K_AT='rc:ics:at';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const set=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+const box=$('#lessons');if(!box)return;
+const fixUrl=u=>String(u||'').trim().replace(/^webcal:\/\//i,'https://');
+const hm=d=>d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+const dayKey=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x.getTime()};
+const dayLabel=d=>{const t=dayKey(new Date()),k=dayKey(d),n=Math.round((k-t)/864e5);if(n===0)return 'Aujourd’hui';if(n===1)return 'Demain';
+  const s=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});return s.charAt(0).toUpperCase()+s.slice(1)};
+
+/* ---------- lecture du fichier .ics ---------- */
+function parseDate(v,params){if(!v)return null;const m=v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);if(!m)return null;
+  const[,y,mo,d,h='0',mi='0',s='0',z]=m;if(z)return new Date(Date.UTC(+y,+mo-1,+d,+h,+mi,+s));return new Date(+y,+mo-1,+d,+h,+mi,+s)}
+function unesc(t){return String(t||'').replace(/\\n/gi,'\n').replace(/\\([,;\\])/g,'$1').trim()}
+function parseICS(text){const lines=String(text).replace(/\r\n?/g,'\n').split('\n'),un=[];
+  lines.forEach(l=>{if(/^[ \t]/.test(l)&&un.length)un[un.length-1]+=l.slice(1);else un.push(l)});
+  const ev=[];let cur=null;
+  un.forEach(l=>{if(l==='BEGIN:VEVENT'){cur={};return}if(l==='END:VEVENT'){if(cur&&cur.start)ev.push(cur);cur=null;return}if(!cur)return;
+    const i=l.indexOf(':');if(i<0)return;const head=l.slice(0,i),val=l.slice(i+1),[name,...ps]=head.split(';');
+    if(name==='DTSTART')cur.start=parseDate(val,ps);else if(name==='DTEND')cur.end=parseDate(val,ps);
+    else if(name==='SUMMARY')cur.title=unesc(val);else if(name==='LOCATION')cur.loc=unesc(val);else if(name==='DESCRIPTION')cur.desc=unesc(val);
+    else if(name==='STATUS')cur.status=val.trim().toUpperCase()});
+  return ev.filter(e=>e.status!=='CANCELLED').sort((a,b)=>a.start-b.start)}
+function matchEleve(e){const txt=RC.norm([e.title,e.desc].join(' '));if(!txt)return null;const l=RC.eleves();
+  let m=l.find(x=>x.nom&&x.prenom&&txt.includes(RC.norm(x.prenom))&&txt.includes(RC.norm(x.nom)));
+  if(!m){const c=l.filter(x=>x.prenom&&RC.norm(x.prenom).length>2&&txt.includes(RC.norm(x.prenom)));if(c.length===1)m=c[0]}
+  return m||null}
+
+/* ---------- récupération ---------- */
+async function fetchICS(url){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),12000);
+  try{const r=await fetch(fixUrl(url),{cache:'no-store',signal:ctl.signal});if(!r.ok)throw Object.assign(new Error('http'),{code:r.status});
+    const txt=await r.text();if(!/BEGIN:VCALENDAR/i.test(txt))throw Object.assign(new Error('format'),{code:'format'});return txt}
+  finally{clearTimeout(t)}}
+let busy=false;
+async function refresh(silent){const url=get(K_URL);if(!url||busy)return;if(!navigator.onLine){render();return}busy=true;render();
+  try{const txt=await fetchICS(url);set(K_DATA,txt);set(K_AT,String(Date.now()))}
+  catch(e){if(!silent)toastL(e.code==='format'?'Le lien ne renvoie pas un agenda':'Impossible de lire l’agenda Ornikar pour le moment')}
+  finally{busy=false;render()}}
+function toastL(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('on');clearTimeout(window.__tl);window.__tl=setTimeout(()=>t.classList.remove('on'),2800)}
+
+/* ---------- affichage ---------- */
+function render(){const url=get(K_URL);
+  if(!url){box.innerHTML=`<button type="button" class="lsetup" data-l-setup><span class="vic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><span class="vt"><b>Mes leçons Ornikar</b><span>Afficher le planning du jour grâce au lien d’agenda Ornikar</span></span></button>`;return}
+  const all=parseICS(get(K_DATA)||''),now=Date.now(),t0=dayKey(new Date()),lim=t0+8*864e5;
+  const up=all.filter(e=>(e.end||e.start)>=now-30*6e4&&e.start.getTime()<lim);
+  const at=+get(K_AT)||0;
+  const groups={};up.forEach(e=>{const k=dayKey(e.start);(groups[k]=groups[k]||[]).push(e)});
+  const keys=Object.keys(groups).map(Number).sort((a,b)=>a-b);
+  const todayHas=keys.includes(t0);
+  const row=e=>{const el=matchEleve(e);return `<div class="lrow"><div class="lt"><b>${hm(e.start)}</b>${e.end?`<small>${hm(e.end)}</small>`:''}</div>
+    <div class="ld"><b>${esc(el?RC.full(el):(e.title||'Leçon'))}</b>${el&&e.title?`<small>${esc(e.title)}</small>`:''}${e.loc?`<small>${esc(e.loc)}</small>`:''}</div>
+    ${el?`<a class="btn quiet lbtn" href="eleves.html#e=${esc(el.id)}">Dossier</a>`:''}</div>`};
+  box.innerHTML=`<div class="vbox lbox"><div class="lhead"><b>Mes leçons</b><span class="lat">${busy?'Mise à jour…':at?`Mis à jour à ${hm(new Date(at))}`:''}</span>
+      <button type="button" class="lic" data-l-refresh aria-label="Mettre à jour">⟳</button><button type="button" class="lic" data-l-setup aria-label="Réglages">⚙</button></div>
+    ${!get(K_DATA)?`<p class="lempty">${busy?'Lecture de l’agenda Ornikar…':'Pas encore de planning : touchez ⟳.'}</p>`:
+      (!todayHas?`<p class="lday">Aujourd’hui</p><p class="lempty">Aucune leçon aujourd’hui.</p>`:'')+
+      (keys.length?keys.slice(0,4).map(k=>`<p class="lday">${dayLabel(new Date(k))}</p>${groups[k].map(row).join('')}`).join(''):`<p class="lempty">Aucune leçon prévue dans les 8 prochains jours.</p>`)}
+  </div>`}
+
+/* ---------- réglage du lien ---------- */
+function setup(){const cur=get(K_URL)||'';const m=document.createElement('div');m.className='shm';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Mes leçons Ornikar</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+    <p class="shm-note" style="margin:0">Dans Ornikar, sous « intégrer votre calendrier à Google Agenda », touchez <b>Copier</b>, puis collez le lien ici. Il reste enregistré uniquement sur cette tablette.</p>
+    <textarea class="shm-text" id="icsUrl" rows="3" style="min-height:90px" placeholder="Collez le lien Ornikar ici" autocomplete="off" spellcheck="false">${esc(cur)}</textarea>
+    <div id="icsRes" class="lres" hidden></div>
+    <div class="shm-act"><button type="button" class="btn primary" data-l-test>Tester et enregistrer</button>
+    <button type="button" class="btn" data-l-file>Importer un fichier .ics</button>${cur?'<button type="button" class="btn quiet" data-l-del>Supprimer le lien</button>':''}</div>
+    <input type="file" id="icsFile" accept=".ics,text/calendar" hidden></div>`;
+  document.body.appendChild(m);const res=m.querySelector('#icsRes');
+  const show=(ok,html)=>{res.hidden=false;res.className='lres '+(ok?'ok':'ko');res.innerHTML=html};
+  m.addEventListener('click',async e=>{const t=e.target;if(t===m||t.closest('[data-x]')){m.remove();return}
+    if(t.closest('[data-l-del]')){[K_URL,K_DATA,K_AT].forEach(k=>set(k,null));m.remove();render();toastL('Lien supprimé');return}
+    if(t.closest('[data-l-file]')){m.querySelector('#icsFile').click();return}
+    const b=t.closest('[data-l-test]');if(!b)return;const url=fixUrl(m.querySelector('#icsUrl').value);
+    if(!/^https?:\/\//i.test(url)){show(false,'Collez d’abord le lien complet (il commence par https:// ou webcal://).');return}
+    b.disabled=true;b.textContent='Test en cours…';
+    try{const txt=await fetchICS(url),n=parseICS(txt).filter(x=>x.start.getTime()>=dayKey(new Date())).length;
+      set(K_URL,url);set(K_DATA,txt);set(K_AT,String(Date.now()));render();
+      show(true,`<b>✓ Ça marche !</b> ${n} leçon${n>1?'s':''} à venir trouvée${n>1?'s':''}. Le planning se met à jour à chaque ouverture de l’appli.`)}
+    catch(err){show(false,err.code==='format'?'<b>Ce lien ne renvoie pas un agenda.</b> Vérifiez que vous avez bien copié le lien Ornikar en entier.':
+      err.code?`<b>Ornikar a refusé la demande (erreur ${esc(err.code)}).</b> Le lien est peut-être expiré : recopiez-le depuis Ornikar.`:
+      '<b>Ornikar bloque la lecture directe depuis l’appli.</b> Solution de secours : ouvrez le lien dans Chrome pour télécharger le fichier .ics, puis touchez « Importer un fichier .ics ».')}
+    finally{b.disabled=false;b.textContent='Tester et enregistrer'}});
+  m.querySelector('#icsFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const txt=await f.text();
+    if(!/BEGIN:VCALENDAR/i.test(txt)){show(false,'Ce fichier n’est pas un agenda .ics.');return}
+    set(K_DATA,txt);set(K_AT,String(Date.now()));if(!get(K_URL))set(K_URL,'fichier');render();const n=parseICS(txt).length;show(true,`<b>✓ Planning importé :</b> ${n} leçon${n>1?'s':''}.`)});
+  setTimeout(()=>m.querySelector('#icsUrl').focus(),60)}
+box.addEventListener('click',e=>{if(e.target.closest('[data-l-setup]'))setup();if(e.target.closest('[data-l-refresh]'))refresh(false)});
+render();if(get(K_URL)&&get(K_URL)!=='fichier')refresh(true);
+addEventListener('pageshow',e=>{if(e.persisted)render()});
+window.__ics={parseICS};
 })();
 </script>
 </body>
