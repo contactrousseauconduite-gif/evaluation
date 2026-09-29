@@ -306,6 +306,23 @@ a.card{text-decoration:none;color:inherit}
 .topbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .sch-h{display:flex;justify-content:space-between;align-items:center;gap:10px}.sch-h .pill{margin-bottom:12px}
+/* carnet de route */
+.cr-hero{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.cr-hero b{font-family:var(--display);font-weight:800;font-size:2.2rem;line-height:1;font-variant-numeric:tabular-nums}.cr-hero span{color:var(--muted);font-weight:700}
+.cr-track{height:10px;border-radius:5px;background:var(--chip);overflow:hidden;margin:10px 0 4px}.cr-track i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--teal),var(--green))}
+.cr-sub{font-size:.85rem;color:var(--muted);margin:0 0 12px}
+.cr-t{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+@media (max-width:520px){.cr-t{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cr-t div{background:var(--bg);border-radius:12px;padding:8px 10px}.cr-t span{display:block;font-size:.74rem;color:var(--muted);font-weight:700}.cr-t b{font-family:var(--display);font-weight:800;font-size:1.1rem}
+.cr-split{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;background:var(--chip)}.cr-split i{display:block;height:100%}
+.cr-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.84rem;margin:6px 0 12px}.cr-leg span{display:flex;align-items:center;gap:6px}.cr-leg i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.cr-v{background:#22416D}.cr-c{background:#2A9DAE}.cr-r{background:#8CC89F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cr-v{background:#6F9BD6}}
+:root[data-theme="dark"] .cr-v{background:#6F9BD6}
+.cr-trip{padding:10px 0;border-top:1px solid var(--line);font-size:.9rem}.cr-trip:first-of-type{border-top:0}
+.cr-trip .l1{display:flex;justify-content:space-between;gap:10px}.cr-trip .l1 b:last-child{font-family:var(--display);white-space:nowrap}
+.cr-trip small{display:block;color:var(--muted)}.cr-trip q{display:block;font-style:italic;margin-top:2px}.cr-trip q::before,.cr-trip q::after{content:none}
+.cr-st{color:#E0A12E;letter-spacing:1px}
+.cr-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.cr-acts .btn{min-height:46px}
 .schg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .scht{display:flex;flex-direction:column;gap:3px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--bg)}
 .scht img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:6px;background:#fff}.scht b{font-size:.88rem}.scht small{color:var(--muted);font-size:.78rem}
@@ -325,7 +342,7 @@ a.card{text-decoration:none;color:inherit}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -356,11 +373,13 @@ window.RC=(function(){
     /* garder les noms des fiches à jour */
     [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex,K.bi,K.de].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+    [K.ev,K.ex,K.bi,K.de,K.ca].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+  const carnet=id=>list(K.ca).find(x=>x.eleveId===id)||null;
+  function saveCarnet(eleveId,d){const l=list(K.ca).filter(x=>x.eleveId!==eleveId),rec={id:'c-'+eleveId,v:1,eleveId,profil:d.profil||{},trips:Array.isArray(d.trips)?d.trips:[],exportedAt:d.exportedAt||Date.now(),updatedAt:Date.now()};l.push(rec);set(K.ca,JSON.stringify(l));return rec}
   function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
     [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
     if(ch)set(k,JSON.stringify(recs))})}
-  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id),bi:list(K.bi).filter(x=>x.eleveId===id),de:list(K.de).filter(x=>x.eleveId===id)});
+  const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id),bi:list(K.bi).filter(x=>x.eleveId===id),de:list(K.de).filter(x=>x.eleveId===id),ca:carnet(id)});
 
   /* sélecteur d'élève dans les fiches */
   let onPick=null,onClear=null;
@@ -382,9 +401,9 @@ window.RC=(function(){
   function status(){const n=list(K.ev).length+list(K.ex).length+list(K.bi).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),el=eleves();
+  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
@@ -396,9 +415,10 @@ window.RC=(function(){
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
     try{const d=JSON.parse(await file.text());
-      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1);
+      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId);
+      if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
-      if(!el&&!ev&&!ex&&!bi&&!de&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
+      if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
@@ -552,7 +572,7 @@ window.RC=(function(){
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();
   return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
-    eleves,eleve,link,addEleve,updateEleve,deleteEleve,recordsOf,full,norm,fr,FIELDS,pickerHTML,
+    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
@@ -597,7 +617,7 @@ function renderList(){
   ${!all.length?`<div class="empty"><b>Aucun élève pour l’instant</b><p>Les dossiers se créent tout seuls quand vous enregistrez une évaluation de départ, un bilan de compétences ou un examen blanc. Vous pouvez aussi ajouter un élève à la main.</p></div>`:
     !l.length?`<p class="empty">Aucun élève ne correspond à « ${esc(query)} ».</p>`:
     l.map(d=>{const lx=d.ex[d.ex.length-1],le=d.ev[d.ev.length-1],lb=d.bi[d.bi.length-1];
-      const parts=[le?`évaluation le ${shortDate(le.date)}`:null,lb?`bilan le ${shortDate(lb.date)}`:null,d.ex.length?`${d.ex.length} examen${d.ex.length>1?'s':''} blanc${d.ex.length>1?'s':''}`:null].filter(Boolean);
+      const parts=[le?`évaluation le ${shortDate(le.date)}`:null,lb?`bilan le ${shortDate(lb.date)}`:null,d.ex.length?`${d.ex.length} examen${d.ex.length>1?'s':''} blanc${d.ex.length>1?'s':''}`:null,(c=>c?`carnet de route ${nkm(crStats(c).km)} km`:null)(RC.carnet(d.e.id))].filter(Boolean);
       const right=lx&&lx.result?`<div class="sc"><b>${fmt(lx.result.total)}<small>/31</small></b><span class="st ${lx.result.status}">${LABEL[lx.result.status]||''}</span></div>`:
         le&&evPrat(le)!=null?`<div class="sc"><b>${evPrat(le)}<small> h</small></b><span>pratique prévue</span></div>`:
         lb&&lb.result?`<div class="sc"><b>${lb.result.ac}<small>/${lb.result.total}</small></b><span>objectifs acquis</span></div>`:'';
@@ -653,6 +673,7 @@ function renderDossier(id){
     ${[...d.ex].reverse().map((x,i)=>{const r=x.result||{};return `<a class="row2" href="examen.html?open=${esc(x.id)}"><div><b>${esc(frDate(x.date))}${x.numero?`, examen n°${esc(x.numero)}`:''}</b><span class="st ${r.status}">${LABEL[r.status]||'Non enregistré'}</span></div><div class="sc"><b>${r.total!=null?fmt(r.total):'–'}<small>/31</small></b></div></a>`}).join('')}`:
     `<p class="empty2">Pas encore d’examen blanc.</p>`}
   </section>
+  ${carnetSection(e)}
   <section class="block"><div class="sch-h"><h2 class="pill">Schémas</h2><a class="linkbtn" href="tableau.html?eleve=${esc(e.id)}">Nouveau schéma</a></div>
     ${d.de.length?`<div class="schg">${[...d.de].reverse().map(x=>`<a class="scht" href="tableau.html?open=${esc(x.id)}"><img src="${x.thumb}" alt=""><b>${esc(x.title||'Schéma')}</b><small>${esc(frDate(x.date))}</small></a>`).join('')}</div>`:
     `<p class="empty2">Pas encore de schéma. Dessinez-en un sur le tableau et enregistrez-le dans ce dossier.</p>`}
@@ -693,6 +714,55 @@ function drawChart(ex){
 }
 let rzT;addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{const id=cur();if(id){const e=RC.eleve(id);if(e)drawChart(dossier(e).ex)}},200)});
 
+
+/* ---------- carnet de route (conduite accompagnée / supervisée) ---------- */
+const CR_ROUTES=[['ville','Ville','cr-v'],['campagne','Campagne','cr-c'],['rapide','Voie rapide','cr-r']];
+const CR_FORM={aac:'Conduite accompagnée',cs:'Conduite supervisée',autre:'Conduite avec accompagnateur'};
+const nkm=n=>Math.round(n||0).toLocaleString('fr-FR').replace(/ | /g,' ');
+const hmin=m=>{m=Math.round(m||0);const h=Math.floor(m/60),r=m%60;return h?`${h} h${r?' '+String(r).padStart(2,'0'):''}`:`${r} min`};
+function crStats(c){const s={km:0,dur:0,n:c.trips.length,nuit:0,pluie:0,routes:{ville:0,campagne:0,rapide:0},man:{},last:''};
+  c.trips.forEach(t=>{const k=+t.km||0;s.km+=k;s.dur+=+t.dur||0;const co=t.cond||[];if(co.includes('nuit'))s.nuit+=k;if(co.includes('pluie')||co.includes('brouillard'))s.pluie+=k;
+    const r=(t.routes||[]).filter(q=>q in s.routes);r.forEach(q=>s.routes[q]+=k/r.length);(t.man||[]).forEach(m=>s.man[m]=(s.man[m]||0)+1);if((t.date||'')>s.last)s.last=t.date});
+  s.obj=+(c.profil&&c.profil.objectif)||0;s.pct=s.obj?Math.min(100,s.km/s.obj*100):0;return s}
+function carnetSection(e){const c=RC.carnet(e.id);
+  const head=`<div class="sch-h"><h2 class="pill">Carnet de route</h2><button type="button" class="linkbtn" data-cr-send>Envoyer le carnet</button></div>`;
+  const inp=`<input type="file" id="crFile" accept=".txt,.json,text/plain,application/json" hidden>`;
+  if(!c)return `<section class="block">${head}<p class="empty2">Conduite accompagnée ou supervisée ? Envoyez le carnet de route à l’élève : il note ses trajets sur son téléphone et vous renvoie son carnet avant chaque rendez-vous.</p>
+    <div class="cr-acts"><button type="button" class="btn primary" data-cr-send>Envoyer le carnet à l’élève</button><button type="button" class="btn" data-cr-imp>Importer le carnet reçu</button></div>${inp}</section>`;
+  const s=crStats(c),p=c.profil||{},rt=s.routes,tot=rt.ville+rt.campagne+rt.rapide;
+  const trips=[...c.trips].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.id).localeCompare(String(a.id))).slice(0,5);
+  const mans=Object.entries(s.man).sort((a,b)=>b[1]-a[1]);
+  return `<section class="block">${head}
+    <div class="cr-hero"><b>${nkm(s.km)}</b><span>km${s.obj?` sur ${nkm(s.obj)}`:''} · ${esc(CR_FORM[p.formule]||'')}</span></div>
+    ${s.obj?`<div class="cr-track" role="img" aria-label="${Math.round(s.pct)} % de l’objectif"><i style="width:${s.pct}%"></i></div>`:''}
+    <p class="cr-sub">${p.debut?`Commencé le ${esc(frDate(p.debut))} · `:''}carnet reçu le ${esc(RC.fr(c.exportedAt||c.updatedAt))}${s.last?`, dernier trajet le ${esc(frDate(s.last))}`:''}</p>
+    <div class="cr-t"><div><span>Trajets</span><b>${s.n}</b></div><div><span>Temps</span><b>${hmin(s.dur)}</b></div><div><span>De nuit</span><b>${nkm(s.nuit)} km</b></div><div><span>Pluie, brouillard</span><b>${nkm(s.pluie)} km</b></div></div>
+    ${tot?`<div class="cr-split" role="img" aria-label="Répartition par type de route">${CR_ROUTES.map(([k,,cl])=>rt[k]?`<i class="${cl}" style="width:${rt[k]/tot*100}%"></i>`:'').join('')}</div>
+    <div class="cr-leg">${CR_ROUTES.map(([k,l,cl])=>`<span><i class="${cl}"></i>${l} : <b>${nkm(rt[k])} km</b></span>`).join('')}</div>`:''}
+    ${mans.length?`<p class="cr-sub" style="margin-top:-4px">Manœuvres : ${esc(mans.map(([m,n])=>`${m} ×${n}`).join(', '))}</p>`:''}
+    ${trips.length?`<h3 class="h3">Derniers trajets</h3>${trips.map(t=>`<div class="cr-trip"><div class="l1"><b>${esc(frDate(t.date))}${t.note?` <span class="cr-st" aria-label="${t.note} sur 5">${'★'.repeat(t.note)}</span>`:''}</b><b>${nkm(t.km)} km</b></div>
+      <small>${esc([(t.routes||[]).map(r=>(CR_ROUTES.find(x=>x[0]===r)||[,r])[1]).join(', '),t.dur?hmin(t.dur):'',(t.cond||[]).map(x=>({nuit:'nuit',pluie:'pluie',brouillard:'brouillard ou neige'})[x]||x).join(', '),t.acc?'avec '+t.acc:''].filter(Boolean).join(' · '))}</small>
+      ${t.com?`<q>${esc(t.com)}</q>`:''}</div>`).join('')}`:'<p class="empty2">Aucun trajet noté pour l’instant.</p>'}
+    <div class="cr-acts"><button type="button" class="btn" data-cr-imp>Importer une mise à jour</button><button type="button" class="btn" data-cr-send>Renvoyer le lien</button></div>${inp}</section>`}
+function carnetSend(e){const T=RC.T,p=e.prenom||'';
+  const url=f=>{const u=new URL('carnet.html',location.href);u.hash='';u.search='';const q=u.searchParams;q.set('e',e.id);if(e.prenom)q.set('p',e.prenom);if(e.nom)q.set('n',e.nom);q.set('f',f);return u.toString()};
+  const build=(f,label)=>tu=>[`Bonjour${p?' '+p:''},`,'',
+    `Voici ${T(tu,'ton','votre')} carnet de route Rousseau Conduite pour suivre ${T(tu,'ta','votre')} ${label} :`,url(f),'',
+    `1. ${T(tu,'Ouvre','Ouvrez')} le lien sur ${T(tu,'ton','votre')} téléphone et ${T(tu,'ajoute-le','ajoutez-le')} à l’écran d’accueil.`,
+    `2. Après chaque trajet, voiture arrêtée, ${T(tu,'note','notez')} les kilomètres, le type de route et les conditions. Ça prend moins d’une minute, ${T(tu,'ton','votre')} accompagnateur peut aussi ${T(tu,'t’aider','vous aider')}.`,
+    f==='aac'?`3. Avant chaque rendez-vous pédagogique, ${T(tu,'touche','touchez')} « Envoyer à mon moniteur » et ${T(tu,'envoie-moi','envoyez-moi')} l’image et le fichier.`:`3. Avant ${T(tu,'ta','votre')} prochaine leçon, ${T(tu,'touche','touchez')} « Envoyer à mon moniteur » et ${T(tu,'envoie-moi','envoyez-moi')} l’image et le fichier.`,
+    '',`${T(tu,'Tes','Vos')} trajets restent sur ${T(tu,'ton','votre')} téléphone. Jamais de téléphone en main en conduisant !`,'','Bonne route,','Fabien','Rousseau Conduite'].join('\n');
+  const c=RC.carnet(e.id),f0=c&&c.profil&&c.profil.formule;
+  const tpls=[{id:'aac',label:'Conduite accompagnée',build:build('aac','conduite accompagnée')},{id:'cs',label:'Conduite supervisée',build:build('cs','conduite supervisée')}];
+  if(f0==='cs')tpls.reverse();
+  RC.openShare({title:'Carnet de route pour '+RC.full(e),tel:e.tel||'',templates:tpls})}
+async function carnetImport(e,file){let d;try{d=JSON.parse(await file.text())}catch(x){d=null}
+  if(!d||d.app!=='rc-carnet'||!Array.isArray(d.trips)){toast(d&&d.app==='rousseau-conduite'?'C’est une sauvegarde de l’appli, pas un carnet de route':'Ce fichier n’est pas un carnet de route');return}
+  const p=d.profil||{};
+  if(p.eleveId&&p.eleveId!==e.id){const o=RC.eleve(p.eleveId);if(!confirm(`Ce carnet a été envoyé à ${o?RC.full(o):'un autre élève'}. L’importer quand même dans le dossier de ${RC.full(e)} ?`))return}
+  else if(!p.eleveId&&p.prenom&&e.prenom&&RC.norm(p.prenom)!==RC.norm(e.prenom)&&!confirm(`Ce carnet est au nom de ${[p.prenom,p.nom].filter(Boolean).join(' ')}. L’importer dans le dossier de ${RC.full(e)} ?`))return;
+  const old=RC.carnet(e.id);if(old&&(old.exportedAt||0)>(d.exportedAt||0)&&!confirm('Le carnet déjà enregistré est plus récent que ce fichier. Le remplacer quand même ?'))return;
+  RC.saveCarnet(e.id,d);const s=crStats(d);renderDossier(e.id);toast(`Carnet importé : ${nkm(s.km)} km, ${s.n} trajet${s.n>1?'s':''}`)}
 /* ---------- navigation ---------- */
 const cur=()=>{const m=location.hash.match(/^#e=(.+)$/);return m?decodeURIComponent(m[1]):null};
 function render(){const id=cur();if(id)renderDossier(id);else renderList();RC.check()}
@@ -716,10 +786,12 @@ $('#view').addEventListener('click',e=>{
         `Ce fut un plaisir de ${T(tu,'t’accompagner','vous accompagner')}. ${T(tu,'N’oublie','N’oubliez')} pas le disque « A » à l’arrière du véhicule et les règles du permis probatoire.`,
         `Si ${T(tu,'tu as','vous avez')} apprécié la formation, un petit avis me ferait très plaisir.`,'','Bonne route et prudence !','Fabien','Rousseau Conduite'].join('\n')},
       {id:'libre',label:'Message libre',build:tu=>[`Bonjour${p?' '+p:''},`,'','','Fabien','Rousseau Conduite'].join('\n')}]});return}
+  if(t.closest('[data-cr-send]')){carnetSend(RC.eleve(cur()));return}
+  if(t.closest('[data-cr-imp]')){$('#crFile').click();return}
   if(t.closest('#editBtn')){editing=true;renderDossier(cur());return}
   if(t.closest('#cancelEdit')){editing=false;renderDossier(cur());return}
   const sb=t.closest('[data-boite] button');if(sb){sb.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===sb));return}
-  if(t.closest('#delBtn')){const id=cur(),e=RC.eleve(id),d=dossier(e),n=d.ev.length+d.ex.length+d.bi.length+d.de.length;
+  if(t.closest('#delBtn')){const id=cur(),e=RC.eleve(id),d=dossier(e),n=d.ev.length+d.ex.length+d.bi.length+d.de.length+(RC.carnet(id)?1:0);
     if(!confirm(`Supprimer définitivement le dossier de ${RC.full(e)}${n?` et ses ${n} fiche${n>1?'s':''}`:''} ?`))return;
     RC.deleteEleve(id);toast('Dossier supprimé');location.hash='';return}
   if(t.closest('.back')){e.preventDefault();location.hash=''}
@@ -731,6 +803,7 @@ $('#view').addEventListener('submit',e=>{e.preventDefault();const f=e.target,v=n
     const b=f.querySelector('[data-boite] [aria-pressed="true"]');
     RC.updateEleve(cur(),{nom:v('nom'),prenom:v('prenom'),naissance:v('naissance'),tel:v('tel'),boite:b?b.dataset.v:'manuelle'});editing=false;renderDossier(cur());toast('Informations enregistrées')}
 });
+$('#view').addEventListener('change',e=>{if(e.target.id==='crFile'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';carnetImport(RC.eleve(cur()),f)}});
 $('#view').addEventListener('input',e=>{
   if(e.target.id==='q'){query=e.target.value;const pos=e.target.selectionStart;renderList();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)}
   if(e.target.id==='notes'){const v=e.target.value,id=cur();clearTimeout(notesT);notesT=setTimeout(()=>RC.updateEleve(id,{notes:v}),500)}

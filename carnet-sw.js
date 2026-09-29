@@ -1,0 +1,51 @@
+// Carnet de route (élèves) : fonctionne hors connexion.
+const CACHE = 'rc-carnet-v1';
+const FONTS = 'rc-carnet-fonts-v1';
+const SHELL = ['./carnet.html', './carnet.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700;800&display=swap';
+const isFont = url => url.startsWith('https://fonts.googleapis.com/') || url.startsWith('https://fonts.gstatic.com/');
+async function cacheFonts() {
+  try {
+    const c = await caches.open(FONTS);
+    const res = await fetch(FONT_CSS, { mode: 'cors' });
+    if (!res.ok) return;
+    const css = await res.clone().text();
+    await c.put(FONT_CSS, res);
+    const urls = [...css.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g)].map(m => m[1]);
+    await Promise.all(urls.map(u => fetch(u, { mode: 'cors' }).then(r => r.ok ? c.put(u, r) : null).catch(() => null)));
+  } catch (e) {}
+}
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => cacheFonts()).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys()
+    .then(keys => Promise.all(keys.filter(k => k.startsWith('rc-carnet') && k !== CACHE && k !== FONTS).map(k => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  if (new URL(req.url).origin !== self.location.origin && !isFont(req.url)) return;
+  if (isFont(req.url)) {
+    e.respondWith(caches.open(FONTS).then(c => c.match(req.url).then(hit => hit || fetch(req).then(res => {
+      if (res && (res.ok || res.type === 'opaque')) c.put(req.url, res.clone());
+      return res;
+    }).catch(() => new Response('', { status: 504 })))));
+    return;
+  }
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('./carnet.html', copy)); }
+      return res;
+    }).catch(() => caches.match('./carnet.html')));
+    return;
+  }
+  e.respondWith(caches.match(req).then(hit => {
+    const net = fetch(req).then(res => {
+      if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+      return res;
+    }).catch(() => hit);
+    return hit || net;
+  }));
+});

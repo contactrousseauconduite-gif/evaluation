@@ -1,0 +1,33 @@
+{
+  "id": "./carnet.html",
+  "name": "Carnet de route – Rousseau Conduite",
+  "short_name": "Carnet de route",
+  "description": "Suivi des kilomètres et des trajets en conduite accompagnée ou supervisée, avec Rousseau Conduite",
+  "lang": "fr",
+  "start_url": "./carnet.html",
+  "scope": "./carnet",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EEF3F5",
+  "theme_color": "#22416D",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
