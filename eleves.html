@@ -724,6 +724,11 @@ function crStats(c){const s={km:0,dur:0,n:c.trips.length,nuit:0,pluie:0,routes:{
   c.trips.forEach(t=>{const k=+t.km||0;s.km+=k;s.dur+=+t.dur||0;const co=t.cond||[];if(co.includes('nuit'))s.nuit+=k;if(co.includes('pluie')||co.includes('brouillard'))s.pluie+=k;
     const r=(t.routes||[]).filter(q=>q in s.routes);r.forEach(q=>s.routes[q]+=k/r.length);(t.man||[]).forEach(m=>s.man[m]=(s.man[m]||0)+1);if((t.date||'')>s.last)s.last=t.date});
   s.obj=+(c.profil&&c.profil.objectif)||0;s.pct=s.obj?Math.min(100,s.km/s.obj*100):0;return s}
+function crRdv(p,km){const d=new Date((p.debut||new Date().toISOString().slice(0,10))+'T12:00'),day=d.getDate();d.setMonth(d.getMonth()+6);if(d.getDate()<day)d.setDate(0);
+  const d6=d.toISOString().slice(0,10),today=new Date().toISOString().slice(0,10);
+  const r1=km>=1500||today>=d6?`<b>1er rendez-vous pédagogique à prévoir</b> (${km>=1500?'1 500 km atteints':'6 mois atteints'})`:`1er rendez-vous pédagogique à 1 500 km ou le ${esc(frDate(d6))}, encore ${nkm(1500-km)} km`;
+  const r2=km>=3000?'<b>2e rendez-vous pédagogique à prévoir</b> (3 000 km atteints)':km>=1500?`2e rendez-vous pédagogique à 3 000 km, encore ${nkm(3000-km)} km`:'';
+  return `<p class="cr-sub" style="margin-bottom:4px">${km>=3000?r2:r1+(r2?'<br>'+r2:'')}</p>`}
 function carnetSection(e){const c=RC.carnet(e.id);
   const head=`<div class="sch-h"><h2 class="pill">Carnet de route</h2><button type="button" class="linkbtn" data-cr-send>Envoyer le carnet</button></div>`;
   const inp=`<input type="file" id="crFile" accept=".txt,.json,text/plain,application/json" hidden>`;
@@ -735,6 +740,7 @@ function carnetSection(e){const c=RC.carnet(e.id);
   return `<section class="block">${head}
     <div class="cr-hero"><b>${nkm(s.km)}</b><span>km${s.obj?` sur ${nkm(s.obj)}`:''} · ${esc(CR_FORM[p.formule]||'')}</span></div>
     ${s.obj?`<div class="cr-track" role="img" aria-label="${Math.round(s.pct)} % de l’objectif"><i style="width:${s.pct}%"></i></div>`:''}
+    ${p.formule==='aac'?crRdv(p,s.km):''}
     <p class="cr-sub">${p.debut?`Commencé le ${esc(frDate(p.debut))} · `:''}carnet reçu le ${esc(RC.fr(c.exportedAt||c.updatedAt))}${s.last?`, dernier trajet le ${esc(frDate(s.last))}`:''}</p>
     <div class="cr-t"><div><span>Trajets</span><b>${s.n}</b></div><div><span>Temps</span><b>${hmin(s.dur)}</b></div><div><span>De nuit</span><b>${nkm(s.nuit)} km</b></div><div><span>Pluie, brouillard</span><b>${nkm(s.pluie)} km</b></div></div>
     ${tot?`<div class="cr-split" role="img" aria-label="Répartition par type de route">${CR_ROUTES.map(([k,,cl])=>rt[k]?`<i class="${cl}" style="width:${rt[k]/tot*100}%"></i>`:'').join('')}</div>
