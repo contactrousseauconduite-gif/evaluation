@@ -309,7 +309,7 @@ a.card{text-decoration:none;color:inherit}
 .docs{margin:0 0 18px}
 .doc{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line);flex-wrap:wrap}.doc:first-child{border-top:0}
 .doc>div:first-child{display:flex;flex-direction:column;gap:2px;flex:1 1 220px}.doc span{color:var(--muted);font-size:.85rem}
-.doc-act{display:flex;gap:8px}.doc .btn{min-height:42px;padding:9px 14px;font-size:.9rem;text-decoration:none;color:var(--ink);display:flex;align-items:center}
+.doc-act{display:flex;gap:8px;flex-wrap:wrap}.doc .btn.go{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}.doc .btn{min-height:42px;padding:9px 14px;font-size:.9rem;text-decoration:none;color:var(--ink);display:flex;align-items:center}
 .doc .btn[data-doc-share]{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
 
 .shm input{width:100%;max-width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:1rem;color:var(--ink);min-height:44px}
@@ -400,7 +400,7 @@ a.card{text-decoration:none;color:inherit}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -431,7 +431,7 @@ window.RC=(function(){
     /* garder les noms des fiches à jour */
     [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex,K.bi,K.de,K.ca].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
   const carnet=id=>list(K.ca).find(x=>x.eleveId===id)||null;
   function saveCarnet(eleveId,d){const l=list(K.ca).filter(x=>x.eleveId!==eleveId),rec={id:'c-'+eleveId,v:1,eleveId,profil:d.profil||{},trips:Array.isArray(d.trips)?d.trips:[],exportedAt:d.exportedAt||Date.now(),updatedAt:Date.now()};l.push(rec);set(K.ca,JSON.stringify(l));return rec}
   function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
@@ -459,9 +459,9 @@ window.RC=(function(){
   function status(){const n=list(K.ev).length+list(K.ex).length+list(K.bi).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),el=eleves();
+  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),sg=list(K.sg),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
@@ -473,10 +473,10 @@ window.RC=(function(){
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
     try{const d=JSON.parse(await file.text());
-      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId);
+      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId),sg=mergeInto(K.sg,d.signes,x=>x.v===1&&x.eleveId);
       if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
-      if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
+      if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!sg&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
@@ -509,9 +509,9 @@ window.RC=(function(){
     box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(d.title)}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
       <p class="shm-note" style="margin:0">Dans quel format envoyer ce document ?</p>
       <button type="button" class="btn primary" data-f="pdf">En PDF <small style="font-weight:400;opacity:.85">(1 fichier)</small></button>
-      <button type="button" class="btn" data-f="jpg">En image JPEG <small style="font-weight:400;opacity:.85">(${d.jpg.length} image${d.jpg.length>1?'s':''})</small></button></div>`;
+      <button type="button" class="btn" data-f="jpg">En image JPEG <small style="font-weight:400;opacity:.85">(${d.jpg.length} image${d.jpg.length>1?'s':''})</small></button>${d.sign?`<button type="button" class="btn" data-f="sign">Faire signer sur la tablette</button>`:''}</div>`;
     document.body.appendChild(box);setTimeout(()=>box.querySelector('.shm-x').focus(),40);
-    box.addEventListener('click',e=>{if(e.target===box||e.target.closest('[data-x]')){box.remove();return}const b=e.target.closest('[data-f]');if(!b)return;box.remove();set('rc:fmt',b.dataset.f);
+    box.addEventListener('click',e=>{if(e.target===box||e.target.closest('[data-x]')){box.remove();return}const b=e.target.closest('[data-f]');if(!b)return;box.remove();if(b.dataset.f==='sign'){signDonnees(d.eleveId||null,d.onSigned);return}set('rc:fmt',b.dataset.f);
       if(b.dataset.f==='jpg')shareImages(d.jpg,d.title);else shareFile(d.url,d.url,d.title)})}
   function pickFormat(title,sub,jpgNote){return new Promise(res=>{const box=document.createElement('div');box.className='shm';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
     box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>${esc(title)}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
@@ -576,7 +576,7 @@ window.RC=(function(){
   const pages=(b,n,pad)=>Array.from({length:n},(_,i)=>`${b}-${pad?String(i+1).padStart(2,'0'):i+1}.jpg`);
   const DOCS=[{url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-page',2)},
     {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-page',11,true)},
-    {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à remettre à l’élève lors de l’évaluation de départ',jpg:pages('donnees-page',1)}];
+    {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à faire signer lors de l’évaluation de départ',jpg:pages('donnees-page',1),sign:true}];
 
   /* ---------- fiche en PDF (sans bibliothèque externe) ---------- */
   const A4W=794,PAD=38,INNER=A4W-2*PAD;
@@ -611,6 +611,134 @@ window.RC=(function(){
   async function ficheJpeg(html,name){const jpg=await ficheImage(html,2);return new File([jpg.bytes],name.replace(/\.pdf$/i,'.jpg'),{type:'image/jpeg'})}
   const fileName=(kind,who,date)=>`${kind}-${String(who||'eleve').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve'}-${date||iso(Date.now())}.pdf`;
   function downloadFile(file){const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
+  /* ---------- « Vos données personnelles » signé sur la tablette ---------- */
+  const DP={img:'donnees-page-1.jpg',pw:793.69,box:{nom:[64.91,971.36,202.48,66],date:[275.39,971.36,113.39,66],sigE:[396.78,971.36,162,66],sigP:[566.78,971.36,161.98,66]}};
+  const fdate=s=>{if(!s)return '';const[y,m,d]=s.split('-');return `${d}/${m}/${y}`};
+  const signes=id=>list(K.sg).filter(x=>x.eleveId===id).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const signe=id=>signes(id)[0]||null;
+  const ageOf=s=>{if(!s)return null;const b=new Date(s+'T12:00'),d=new Date();let a=d.getFullYear()-b.getFullYear();const m=d.getMonth()-b.getMonth();if(m<0||(m===0&&d.getDate()<b.getDate()))a--;return a};
+  function sgCss(){if(document.getElementById('sgCss'))return;const st=document.createElement('style');st.id='sgCss';st.textContent=`
+.sgm .shm-in{max-width:720px;gap:10px}
+.sgm-doc{max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;-webkit-overflow-scrolling:touch}
+.sgm-doc img{display:block;width:100%}
+.sgm-g{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px}
+.sgm-g label{display:flex;flex-direction:column;gap:4px;font-size:.84rem;font-weight:700;color:var(--muted);min-width:0}
+.sgm-g input{width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;font-size:1rem;min-height:46px}
+.sgm-pads{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+@media (min-width:640px){.sgm-pads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.sgm-ph{display:flex;justify-content:space-between;align-items:center;font-size:.84rem;font-weight:700;color:var(--muted);margin-bottom:4px}
+.sgm-ph button{background:none;border:0;color:var(--tealtext);font-weight:700;cursor:pointer;padding:6px 2px;font:inherit;font-size:.88rem}
+.sgm canvas{display:block;width:100%;aspect-ratio:3/1;background:#fff;border:1px dashed #9AA9B6;border-radius:10px;touch-action:none;cursor:crosshair}
+.sgm .btn.primary,.sgv .btn.primary{background:var(--navy);border-color:var(--navy);color:var(--navy-ink,#fff)}
+.sgm-act,.sgv-act{display:flex;gap:8px}.sgm-act .btn,.sgv-act .btn{flex:1 1 0;min-height:50px;margin:0;grid-column:auto;width:auto}
+.sgv .shm-in{max-width:720px}.sgv img{display:block;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff}
+.sge-l{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto}
+.sge-l button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px 12px;cursor:pointer;font:inherit}
+.sge-l button small{color:var(--muted)}
+.dp-card{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid #E9B949;background:#FFF4D6;color:#4A3800}
+.dp-card.ok{border-color:var(--line);background:var(--bg);color:var(--ink)}
+.dp-card>div{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}.dp-card small{font-size:.8rem;opacity:.85}
+.dp-ic{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.85rem;background:#E9B949;color:#fff}.dp-card.ok .dp-ic{background:#3E9A62}
+.dp-card .dp-go{flex:none;min-height:42px;padding:8px 14px;background:var(--navy);border-color:var(--navy);color:var(--navy-ink,#fff);font-weight:700;border-radius:10px;cursor:pointer}
+.dp-card .dp-lk{flex:none;background:none;border:0;color:var(--tealtext);font-weight:700;cursor:pointer;padding:8px 4px;font:inherit}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dp-card:not(.ok){background:#3A3113;color:#F7E3A6;border-color:#8A6D1F}}
+:root[data-theme="dark"] .dp-card:not(.ok){background:#3A3113;color:#F7E3A6;border-color:#8A6D1F}
+.sge input{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;min-height:46px}`;document.head.appendChild(st)}
+  function modal(cls,html){sgCss();const el=document.createElement('div');el.className='shm '+cls;el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');
+    el.innerHTML=`<div class="shm-in">${html}</div>`;document.body.appendChild(el);document.documentElement.style.overflow='hidden';
+    el._close=()=>{el.remove();if(!document.querySelector('.shm'))document.documentElement.style.overflow=''};return el}
+  /* zone de signature au stylet ou au doigt ; l'encre est gardée sur fond transparent */
+  function sigPad(cv){const x=cv.getContext('2d');let on=false,last=null,ink=false;
+    const size=()=>{const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.max(1,Math.round(r.width*d));cv.height=Math.max(1,Math.round(r.height*d));
+      x.setTransform(d,0,0,d,0,0);x.lineCap='round';x.lineJoin='round';x.strokeStyle='#1C2B40';x.fillStyle='#1C2B40';ink=false};
+    size();const pt=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,p:e.pressure&&e.pointerType==='pen'?e.pressure:.5}};
+    cv.addEventListener('pointerdown',e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);on=true;last=pt(e);x.beginPath();x.arc(last.x,last.y,1.2,0,7);x.fill();ink=true});
+    cv.addEventListener('pointermove',e=>{if(!on)return;const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];evs.forEach(q=>{const p=pt(q);x.lineWidth=1.6+p.p*2.2;x.beginPath();x.moveTo(last.x,last.y);x.lineTo(p.x,p.y);x.stroke();last=p})});
+    const end=()=>{on=false};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+    return{clear:size,empty:()=>!ink,
+      png(){const w=cv.width,h=cv.height,d=x.getImageData(0,0,w,h).data;let x0=w,y0=h,x1=-1,y1=-1;
+        for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++)if(d[(yy*w+xx)*4+3]>20){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy}
+        if(x1<0)return null;const m=6;x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(w-1,x1+m);y1=Math.min(h-1,y1+m);
+        const sc=Math.min(1,600/(x1-x0+1)),c=document.createElement('canvas');c.width=Math.round((x1-x0+1)*sc);c.height=Math.round((y1-y0+1)*sc);
+        c.getContext('2d').drawImage(cv,x0,y0,x1-x0+1,y1-y0+1,0,0,c.width,c.height);return c.toDataURL('image/png')}}}
+  /* image du document rempli et signé */
+  async function signedImage(rec){const bg=new Image();bg.src=DP.img;await bg.decode();
+    try{await document.fonts.load('700 20px "Atkinson Hyperlegible"')}catch(e){}
+    const c=document.createElement('canvas');c.width=bg.naturalWidth;c.height=bg.naturalHeight;const x=c.getContext('2d');x.drawImage(bg,0,0);
+    const s=c.width/DP.pw,B=k=>DP.box[k].map(v=>v*s);
+    const text=(k,t)=>{const[bx,by,bw]=B(k);let f=13;x.fillStyle='#1C2B40';x.textBaseline='alphabetic';
+      do{x.font=`700 ${f*s}px "Atkinson Hyperlegible", Arial, sans-serif`;f-=.5}while(x.measureText(t).width>bw-14*s&&f>7);x.fillText(t,bx+7*s,by+48*s)};
+    text('nom',rec.nom||'');text('date',fdate(rec.date));
+    const sig=async(k,url)=>{if(!url)return;const im=new Image();im.src=url;await im.decode();const[bx,by,bw,bh]=B(k),aw=bw-12*s,ah=bh-24*s,r=Math.min(aw/im.width,ah/im.height);
+      const w=im.width*r,h=im.height*r;x.drawImage(im,bx+6*s+(aw-w)/2,by+19*s+(ah-h)/2,w,h)};
+    await sig('sigE',rec.sigE);if(rec.minor)await sig('sigP',rec.sigP);else{const[bx,by,bw]=B('sigP');x.font=`400 ${10*s}px Arial, sans-serif`;x.fillStyle='#9AA9B6';x.fillText('Sans objet',bx+7*s,by+46*s)}
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
+  const sgName=rec=>fileName('donnees-personnelles-signe',rec.nom,rec.date);
+  async function signedPdf(rec){return new File([jpegPdf(await signedImage(rec))],sgName(rec),{type:'application/pdf'})}
+  async function signedJpeg(rec){return new File([(await signedImage(rec)).bytes],sgName(rec).replace(/\.pdf$/,'.jpg'),{type:'image/jpeg'})}
+  function sendSigned(rec){const e=eleve(rec.eleveId)||{},p=e.prenom||'';
+    openShare({title:'Document signé pour '+(rec.nom||full(e)),tel:e.tel||'',templates:[{id:'dp',label:'Données personnelles',build:tu=>[`Bonjour${p?' '+p:''},`,'',
+      `Voici une copie du document « Vos données personnelles » ${T(tu,'que tu as signé','que vous avez signé')} le ${fdate(rec.date)}.`,
+      `${T(tu,'Garde-le','Gardez-le')} : il explique quelles informations je note pour ${T(tu,'ta','votre')} formation et comment les consulter, les corriger ou les faire supprimer.`,'','Fabien','Rousseau Conduite'].join('\n')}],
+      attach:{title:'Joindre le document signé',label:`Vos données personnelles, signé le ${fdate(rec.date)}`,kind:'PDF',make:()=>signedPdf(rec),img:()=>signedJpeg(rec)}})}
+  async function viewSigned(rec){const im=await signedImage(rec),url=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));
+    const el=modal('sgv',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      <p class="shm-note" style="margin:0">Signé le ${esc(fdate(rec.date))} par ${esc(rec.nom)}${rec.minor?' et son représentant légal':''}.</p>
+      <img src="${url}" alt="Document signé"><div class="sgv-act"><button type="button" class="btn primary" data-send>Envoyer à l’élève</button><button type="button" class="btn" data-dl>Télécharger</button></div>`);
+    el.addEventListener('click',async ev=>{const b=ev.target.closest('button');if(ev.target===el||(b&&b.dataset.x!=null)){URL.revokeObjectURL(url);el._close();return}if(!b)return;
+      if(b.dataset.send!=null){URL.revokeObjectURL(url);el._close();sendSigned(rec)}
+      if(b.dataset.dl!=null){const f=await pickFormat('Télécharger le document signé','Dans quel format ?');if(!f)return;downloadFile(f==='jpg'?await signedJpeg(rec):await signedPdf(rec));toast('Document téléchargé')}})}
+  /* rappel dans les fiches (évaluation de départ, bilan) */
+  function dpBlock(eleveId){sgCss();const r=eleveId?signe(eleveId):null;
+    return `<div class="dp-card${r?' ok':''}" data-dp-card>${r?`<span class="dp-ic" aria-hidden="true">✓</span><div><b>Vos données personnelles</b><small>Signé le ${esc(fdate(r.date))}</small></div><button type="button" class="dp-lk" data-dp-view>Voir</button>`:
+      `<span class="dp-ic" aria-hidden="true">!</span><div><b>Vos données personnelles</b><small>Pas encore signé : à faire signer avec cette fiche.</small></div><button type="button" class="dp-go" data-dp-sign>Faire signer</button>`}</div>`}
+  const dpAsked={};
+  function dpRemind(eleveId,onDone){if(!eleveId||signe(eleveId)||dpAsked[eleveId])return;dpAsked[eleveId]=1;const e=eleve(eleveId);if(!e)return;
+    const el=modal('sgr',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      <p style="margin:0">${esc(full(e))} n’a pas encore signé ce document. Le faire signer maintenant, pendant que l’élève est là ?</p>
+      <div class="sgm-act"><button type="button" class="btn primary" data-go style="background:var(--navy);border-color:var(--navy);color:var(--navy-ink,#fff)">Faire signer maintenant</button><button type="button" class="btn" data-x>Plus tard</button></div>`);
+    el.addEventListener('click',ev=>{const b=ev.target.closest('button');if(ev.target===el||(b&&b.dataset.x!=null)){el._close();return}if(b&&b.dataset.go!=null){el._close();signDonnees(eleveId,onDone)}})}
+  /* choisir l'élève quand on part de l'accueil */
+  function pickEleve(){return new Promise(res=>{const all=eleves().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const el=modal('sge',`<div class="shm-h"><b>Pour quel élève ?</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      ${all.length?`<input type="search" data-q placeholder="Rechercher un élève" autocomplete="off"><div class="sge-l" data-l></div>`:''}
+      <p class="shm-note" style="margin:4px 0 0">${all.length?'Nouvel élève ?':'Nouvel élève'} Son dossier sera créé.</p>
+      <div class="sgm-g"><label>Prénom<input type="text" data-p autocomplete="off"></label><label>Nom<input type="text" data-n autocomplete="off"></label></div>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:.84rem;font-weight:700;color:var(--muted)">Date de naissance <input type="date" data-b style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;min-height:46px;font:inherit"></label>
+      <button type="button" class="btn" data-new>Créer le dossier et faire signer</button>`);
+    const done=v=>{el._close();res(v)};
+    const paint=q=>{const box=el.querySelector('[data-l]');if(!box)return;const n=norm(q||'');const l=(n?all.filter(e=>norm(full(e)+' '+(e.nom||'')).includes(n)):all).slice(0,6);
+      box.innerHTML=l.map(e=>`<button type="button" data-id="${esc(e.id)}"><b>${esc(full(e))}</b>${signe(e.id)?`<small>Déjà signé le ${esc(fdate(signe(e.id).date))}</small>`:''}</button>`).join('')||'<p class="shm-note">Aucun élève trouvé.</p>'};
+    paint('');el.addEventListener('input',ev=>{if(ev.target.matches('[data-q]'))paint(ev.target.value)});
+    el.addEventListener('click',ev=>{const b=ev.target.closest('button');if(ev.target===el||(b&&b.dataset.x!=null)){done(null);return}if(!b)return;
+      if(b.dataset.id){done(b.dataset.id);return}
+      if(b.dataset.new!=null){const p=el.querySelector('[data-p]').value.trim(),n=el.querySelector('[data-n]').value.trim();if(!p&&!n){toast('Indiquez le nom de l’élève');return}
+        done(addEleve({prenom:p,nom:n,naissance:el.querySelector('[data-b]').value,boite:'manuelle'}).id)}})})}
+  /* écran de signature */
+  async function signDonnees(eleveId,onDone){if(!eleveId){eleveId=await pickEleve();if(!eleveId)return}
+    const e=eleve(eleveId);if(!e){toast('Élève introuvable');return}const a=ageOf(e.naissance);let minor=a!=null&&a<18;
+    const el=modal('sgm',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      <p class="shm-note" style="margin:0">Faites lire le document à l’élève, puis faites-le signer ci-dessous.</p>
+      <div class="sgm-doc"><img src="${DP.img}" alt="Document Vos données personnelles"></div>
+      <div class="sgm-g"><label>Nom et prénom de l’élève<input type="text" data-nom value="${esc([e.nom,e.prenom].filter(Boolean).join(' '))}"></label><label>Date<input type="date" data-date value="${iso(Date.now())}"></label></div>
+      <div class="seg" data-minor><button type="button" data-v="0" aria-pressed="${!minor}">Élève majeur</button><button type="button" data-v="1" aria-pressed="${minor}">Élève mineur</button></div>
+      <div class="sgm-pads${minor?' two':''}"><div><div class="sgm-ph"><span>Signature de l’élève</span><button type="button" data-clear="E">Effacer</button></div><canvas data-pad="E"></canvas></div>
+        <div data-pw ${minor?'':'hidden'}><div class="sgm-ph"><span>Signature du représentant légal</span><button type="button" data-clear="P">Effacer</button></div><canvas data-pad="P"></canvas></div></div>
+      <div class="sgm-act"><button type="button" class="btn primary" data-ok>Valider la signature</button><button type="button" class="btn" data-x>Annuler</button></div>`);
+    const pads={E:sigPad(el.querySelector('[data-pad=E]')),P:sigPad(el.querySelector('[data-pad=P]'))};
+    el.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
+      if(b.dataset.x!=null){if((!pads.E.empty()||!pads.P.empty())&&!confirm('Abandonner la signature ?'))return;el._close();return}
+      if(b.dataset.clear){pads[b.dataset.clear].clear();return}
+      if(b.closest('[data-minor]')){minor=b.dataset.v==='1';b.parentElement.querySelectorAll('button').forEach(q=>q.setAttribute('aria-pressed',q===b));
+        el.querySelector('[data-pw]').hidden=!minor;el.querySelector('.sgm-pads').classList.toggle('two',minor);pads.E.clear();pads.P.clear();return}
+      if(b.dataset.ok!=null){const nom=el.querySelector('[data-nom]').value.trim(),date=el.querySelector('[data-date]').value||iso(Date.now());
+        if(!nom){toast('Indiquez le nom et le prénom');return}
+        if(pads.E.empty()){toast('Il manque la signature de l’élève');return}
+        if(minor&&pads.P.empty()){toast('Il manque la signature du représentant légal');return}
+        const rec={id:'sg'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),v:1,doc:'donnees',eleveId,nom,date,minor,sigE:pads.E.png(),sigP:minor?pads.P.png():null,createdAt:Date.now(),updatedAt:Date.now()};
+        const l=list(K.sg);l.push(rec);set(K.sg,JSON.stringify(l));
+        if(!list(K.sg).some(x=>x.id===rec.id)){toast('Mémoire pleine : faites une sauvegarde puis réessayez');return}
+        el._close();toast('Document signé et enregistré dans le dossier');if(onDone)onDone(rec);sendSigned(rec)}})}
   /* ---------- kilométrage du véhicule (LLD) ---------- */
   function veh(){try{const o=JSON.parse(get(K.ve));return o&&o.contrat?o:null}catch(e){return null}}
   function vehSave(o){o.updatedAt=Date.now();set(K.ve,JSON.stringify(o))}
@@ -630,7 +758,7 @@ window.RC=(function(){
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();
   return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
-    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,recordsOf,full,norm,fr,FIELDS,pickerHTML,
+    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
@@ -681,8 +809,8 @@ function render(){
       <div class="vact"><a class="btn go" href="vehicule.html#releve">Relever le compteur</a><a class="btn quiet" href="vehicule.html">Détails</a></div></div>`}
   RC.check();
 }
-$('#docs').innerHTML=RC.DOCS.map((d,i)=>`<div class="doc"><div><b>${esc(d.title)}</b><span>${esc(d.sub)}</span></div><div class="doc-act"><button type="button" class="btn" data-doc-share="${i}">Partager</button><a class="btn quiet" href="${esc(d.url)}" target="_blank" rel="noopener">Ouvrir</a></div></div>`).join('');
-$('#docs').addEventListener('click',e=>{const b=e.target.closest('[data-doc-share]');if(b){RC.shareDoc(RC.DOCS[+b.dataset.docShare])}});
+$('#docs').innerHTML=RC.DOCS.map((d,i)=>`<div class="doc"><div><b>${esc(d.title)}</b><span>${esc(d.sub)}</span></div><div class="doc-act">${d.sign?`<button type="button" class="btn go" data-doc-sign>Faire signer</button>`:''}<button type="button" class="btn" data-doc-share="${i}">Partager</button><a class="btn quiet" href="${esc(d.url)}" target="_blank" rel="noopener">Ouvrir</a></div></div>`).join('');
+$('#docs').addEventListener('click',e=>{if(e.target.closest('[data-doc-sign]')){RC.signDonnees(null);return}const b=e.target.closest('[data-doc-share]');if(b){RC.shareDoc(RC.DOCS[+b.dataset.docShare])}});
 $('#restoreBtn').onclick=()=>$('#restoreFile').click();
 $('#restoreFile').addEventListener('change',async e=>{if(e.target.files[0]&&await RC.restore(e.target.files[0]))render();e.target.value=''});
 addEventListener('pageshow',render);
