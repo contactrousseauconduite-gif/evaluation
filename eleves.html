@@ -989,23 +989,48 @@ function carnetSend(e){const T=RC.T,p=e.prenom||'';
     `Voici ${T(tu,'ton','votre')} carnet de route Rousseau Conduite pour suivre ${T(tu,'ta','votre')} ${label} :`,url(f),'',
     `1. ${T(tu,'Ouvre','Ouvrez')} le lien sur ${T(tu,'ton','votre')} téléphone et ${T(tu,'ajoute-le','ajoutez-le')} à l’écran d’accueil.`,
     `2. Après chaque trajet, voiture arrêtée, ${T(tu,'note','notez')} les kilomètres, le type de route et les conditions. Ça prend moins d’une minute, ${T(tu,'ton','votre')} accompagnateur peut aussi ${T(tu,'t’aider','vous aider')}.`,
-    f==='aac'?`3. Avant chaque rendez-vous pédagogique, ${T(tu,'touche','touchez')} « Envoyer à mon moniteur » et ${T(tu,'envoie-moi','envoyez-moi')} l’image et le fichier.`:`3. Avant ${T(tu,'ta','votre')} prochaine leçon, ${T(tu,'touche','touchez')} « Envoyer à mon moniteur » et ${T(tu,'envoie-moi','envoyez-moi')} l’image et le fichier.`,
+    f==='aac'?`3. Avant chaque rendez-vous pédagogique, ${T(tu,'touche','touchez')} « Envoyer à mon moniteur » et ${T(tu,'envoie-moi','envoyez-moi')} le message.`:`3. Avant ${T(tu,'ta','votre')} prochaine leçon, ${T(tu,'touche','touchez')} « Envoyer à mon moniteur » et ${T(tu,'envoie-moi','envoyez-moi')} le message.`,
     '',`${T(tu,'Tes','Vos')} trajets restent sur ${T(tu,'ton','votre')} téléphone. Jamais de téléphone en main en conduisant !`,'','Bonne route,','Fabien','Rousseau Conduite'].join('\n');
   const c=RC.carnet(e.id),f0=c&&c.profil&&c.profil.formule;
   const tpls=[{id:'aac',label:'Conduite accompagnée',build:build('aac','conduite accompagnée')},{id:'cs',label:'Conduite supervisée',build:build('cs','conduite supervisée')}];
   if(f0==='cs')tpls.reverse();
   RC.openShare({title:'Carnet de route pour '+RC.full(e),tel:e.tel||'',templates:tpls})}
-async function carnetImport(e,file){let d;try{d=JSON.parse(await file.text())}catch(x){d=null}
+async function carnetImport(e,file){let d;try{d=JSON.parse(await file.text())}catch(x){d=null}return carnetImportData(e,d)}
+async function carnetImportData(e,d){
   if(!d||d.app!=='rc-carnet'||!Array.isArray(d.trips)){toast(d&&d.app==='rousseau-conduite'?'C’est une sauvegarde de l’appli, pas un carnet de route':'Ce fichier n’est pas un carnet de route');return}
   const p=d.profil||{};
   if(p.eleveId&&p.eleveId!==e.id){const o=RC.eleve(p.eleveId);if(!confirm(`Ce carnet a été envoyé à ${o?RC.full(o):'un autre élève'}. L’importer quand même dans le dossier de ${RC.full(e)} ?`))return}
   else if(!p.eleveId&&p.prenom&&e.prenom&&RC.norm(p.prenom)!==RC.norm(e.prenom)&&!confirm(`Ce carnet est au nom de ${[p.prenom,p.nom].filter(Boolean).join(' ')}. L’importer dans le dossier de ${RC.full(e)} ?`))return;
   const old=RC.carnet(e.id);if(old&&(old.exportedAt||0)>(d.exportedAt||0)&&!confirm('Le carnet déjà enregistré est plus récent que ce fichier. Le remplacer quand même ?'))return;
   RC.saveCarnet(e.id,d);const s=crStats(d);renderDossier(e.id);toast(`Carnet importé : ${nkm(s.km)} km, ${s.n} trajet${s.n>1?'s':''}`)}
+/* ---------- carnet reçu par lien (#carnet=…) ---------- */
+async function decodeCarnet(code){const t=code.slice(1).replace(/-/g,'+').replace(/_/g,'/'),bin=atob(t+'==='.slice((t.length+3)%4)),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  if(code[0]==='z'){const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(u);w.close();return JSON.parse(await new Response(ds.readable).text())}
+  return JSON.parse(new TextDecoder().decode(u))}
+async function carnetFromLink(){const m=location.hash.match(/^#carnet=([zj][A-Za-z0-9_-]+)$/);if(!m)return false;history.replaceState(null,'',location.pathname);
+  let d;try{d=await decodeCarnet(m[1])}catch(x){toast('Lien de carnet illisible : demandez à l’élève de le renvoyer');return false}
+  if(!d||d.app!=='rc-carnet'||!Array.isArray(d.trips)){toast('Ce lien n’est pas un carnet de route');return false}
+  const p=d.profil||{},who=[p.prenom,p.nom].filter(Boolean).join(' ')||'l’élève',km=crStats(d).km;
+  let e=p.eleveId&&RC.eleve(p.eleveId);
+  if(!e){const n=RC.norm(p.prenom),f=RC.norm(p.nom),c=RC.eleves().filter(x=>RC.norm(x.prenom)===n&&(!f||!x.nom||RC.norm(x.nom)===f));if(c.length===1)e=c[0]}
+  if(!e){e=await pickForCarnet(who);if(!e)return false}
+  if(p.eleveId&&p.eleveId!==e.id)d.profil=Object.assign({},p,{eleveId:e.id});
+  location.hash='e='+e.id;await new Promise(r=>setTimeout(r,50));
+  await carnetImportData(e,Object.assign({},d,{profil:Object.assign({},d.profil,{eleveId:e.id})}));return true}
+function pickForCarnet(who){return new Promise(res=>{const box=document.createElement('div');box.className='shm';
+  const l=RC.eleves().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Carnet de route de ${esc(who)}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+    <p class="shm-note" style="margin:0">Dans quel dossier l’ajouter ?</p>${l.slice(0,8).map(e=>`<button type="button" class="btn docpick" data-id="${esc(e.id)}"><b>${esc(RC.full(e))}</b></button>`).join('')}
+    <button type="button" class="btn primary" data-new>Créer le dossier de ${esc(who)}</button></div>`;
+  document.body.appendChild(box);const done=v=>{box.remove();res(v)};
+  box.addEventListener('click',ev=>{const b=ev.target.closest('button');if(ev.target===box||(b&&b.dataset.x!=null)){done(null);return}if(!b)return;
+    if(b.dataset.id)done(RC.eleve(b.dataset.id));
+    if(b.dataset.new!=null){const parts=who.split(' ');done(RC.addEleve({prenom:parts[0]||'',nom:parts.slice(1).join(' '),boite:'manuelle'}))}})})}
+
 /* ---------- navigation ---------- */
 const cur=()=>{const m=location.hash.match(/^#e=(.+)$/);return m?decodeURIComponent(m[1]):null};
 function render(){const id=cur();if(id)renderDossier(id);else renderList();RC.check()}
-addEventListener('hashchange',()=>{editing=false;render();window.scrollTo(0,0)});
+addEventListener('hashchange',()=>{if(location.hash.startsWith('#carnet=')){carnetFromLink();return}editing=false;render();window.scrollTo(0,0)});
 
 $('#view').addEventListener('click',e=>{
   const t=e.target;
@@ -1052,7 +1077,7 @@ $('#view').addEventListener('input',e=>{
   if(e.target.id==='notes'){const v=e.target.value,id=cur();clearTimeout(notesT);notesT=setTimeout(()=>RC.updateEleve(id,{notes:v}),500)}
 });
 
-render();
+render();carnetFromLink();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{if(navigator.onLine&&r.active)r.active.postMessage('fonts')}).catch(()=>{}));
 })();

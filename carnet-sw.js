@@ -1,5 +1,5 @@
 // Carnet de route (élèves) : fonctionne hors connexion.
-const CACHE = 'rc-carnet-v1';
+const CACHE = 'rc-carnet-v2';
 const FONTS = 'rc-carnet-fonts-v1';
 const SHELL = ['./carnet.html', './carnet.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-v2.png'];
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700;800&display=swap';

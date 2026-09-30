@@ -178,7 +178,7 @@ function rdvList(p,km){const d6=addMonths(p.debut,6),ok1=km>=1500||todayISO()>=d
   return[{t:'1er rendez-vous pédagogique',ok:ok1,sub:ok1?`${km>=1500?'1 500 km atteints':'6 mois atteints'} : c’est le moment, prévenez votre moniteur`:`à 1 500 km ou le ${frDate(d6)} (le premier des deux) · encore ${nkm(1500-km)} km`},
     {t:'2e rendez-vous pédagogique',ok:ok2,sub:ok2?'3 000 km atteints : prévenez votre moniteur':`à 3 000 km, en fin d’apprentissage · encore ${nkm(3000-km)} km`}]}
 const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-function render(){if(!C)setupView();else homeView()}
+function render(){if(!C)setupView();else{homeView();setTimeout(prepare,300)}}
 
 /* ---------- saisie d’un trajet ---------- */
 let sheet=null;
@@ -261,13 +261,24 @@ async function summaryCanvas(){try{await Promise.all([document.fonts.load('800 5
 const slug=()=>[C.profil.prenom,C.profil.nom].filter(Boolean).join('-').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'eleve';
 const dataFile=()=>new File([JSON.stringify({app:'rc-carnet',v:1,exportedAt:Date.now(),profil:C.profil,trips:C.trips})],`carnet-${slug()}-${todayISO()}.txt`,{type:'text/plain'});
 function dl(f){const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
+/* le lien contient tout le carnet (compressé) : le moniteur le touche et le carnet s'ajoute au dossier de l'élève */
+const b64u=u=>{let t='';for(let i=0;i<u.length;i+=0x8000)t+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(t).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+async function carnetLink(){const json=JSON.stringify({app:'rc-carnet',v:1,exportedAt:Date.now(),profil:C.profil,trips:C.trips}),raw=new TextEncoder().encode(json);let code;
+  try{const cs=new CompressionStream('deflate-raw'),w=cs.writable.getWriter();w.write(raw);w.close();code='z'+b64u(new Uint8Array(await new Response(cs.readable).arrayBuffer()))}catch(e){code='j'+b64u(raw)}
+  return new URL('eleves.html',location.href).href.split('#')[0].split('?')[0]+'#carnet='+code}
+let prep=null,prepAt=0;
+async function build(){const c=await summaryCanvas(),blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9)),img=new File([blob],`carnet-${slug()}-${todayISO()}.jpg`,{type:'image/jpeg'}),link=await carnetLink();
+  const s=stats(),p=C.profil,who=[p.prenom,p.nom].filter(Boolean).join(' ');
+  const text=`Bonjour Fabien,\n\nVoici mon carnet de route : ${nkm(s.km)} km en ${s.n} trajet${s.n>1?'s':''}${s.dur?` (${hmin(s.dur)} de conduite)`:''}.\n\nPour l’ajouter à mon dossier, touchez ce lien :\n${link}\n\n${who}`;
+  return{img,text}}
+function prepare(){prepAt=Date.now();prep=build();prep.catch(()=>{prep=null})}
 async function send(btn){const lab=btn.textContent;btn.disabled=true;btn.textContent='Préparation…';
-  try{const c=await summaryCanvas(),blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9)),img=new File([blob],`carnet-${slug()}-${todayISO()}.jpg`,{type:'image/jpeg'}),data=dataFile();
-    const s=stats(),text=`Bonjour Fabien, voici mon carnet de route : ${nkm(s.km)} km en ${s.n} trajet${s.n>1?'s':''}. ${C.profil.prenom||''}`.trim();
-    const both=[img,data];
-    if(navigator.canShare&&navigator.canShare({files:both})){try{await navigator.share({files:both,title:'Carnet de route',text});toast('Carnet envoyé')}catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
-    else if(navigator.canShare&&navigator.canShare({files:[img]})){try{await navigator.share({files:[img],title:'Carnet de route',text});dl(data);toast('Image envoyée, fichier téléchargé : envoyez-le aussi à votre moniteur')}catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
-    else{dl(img);setTimeout(()=>dl(data),500);toast('Image et fichier téléchargés : envoyez-les à votre moniteur')}}
+  try{if(!prep||Date.now()-prepAt>60000)prepare();const{img,text}=await prep;
+    const withImg=navigator.canShare&&navigator.canShare({files:[img]});
+    try{if(withImg)await navigator.share({files:[img],text});else if(navigator.share)await navigator.share({text});else throw new Error('no share');toast('Carnet envoyé')}
+    catch(e){if(e&&e.name==='AbortError')return;
+      let ok=false;try{await navigator.clipboard.writeText(text);ok=true}catch(_){}
+      dl(img);toast(ok?'Message copié et image téléchargée : collez le message dans votre messagerie':'Image téléchargée : envoyez-la à votre moniteur')}}
   catch(e){toast('Impossible de préparer le récapitulatif')}finally{btn.disabled=false;btn.textContent=lab}}
 async function backup(){const f=new File([JSON.stringify({app:'rc-carnet',v:1,backup:true,exportedAt:Date.now(),profil:C.profil,trips:C.trips})],`sauvegarde-carnet-${slug()}-${todayISO()}.txt`,{type:'text/plain'});
   try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Sauvegarde du carnet de route'});toast('Sauvegarde envoyée');return}}catch(e){if(e&&e.name==='AbortError')return}
