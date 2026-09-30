@@ -399,6 +399,7 @@ a.card{text-decoration:none;color:inherit}
 <section class="block save"><div><b>Sauvegarde</b><span data-bk-last></span><span class="save-tip">Touchez « Sauvegarder dans Drive », puis choisissez <b>Drive</b> dans la liste et votre dossier « Rousseau Conduite ». Pour restaurer, choisissez le fichier depuis Drive.</span></div>
   <div class="save-act"><button type="button" class="btn go" data-bk-now><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l6 10-4 7H6l-4-7z"/><path d="M8 3l6 10h8M2 13h12l-4 7"/></svg>Sauvegarder dans Drive</button><button type="button" class="btn quiet" id="restoreBtn">Restaurer</button><button type="button" class="btn quiet" data-bk-dl>Télécharger</button></div>
   <input type="file" accept=".json,.txt,application/json,text/plain" id="restoreFile" hidden></section>
+<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 41</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -722,12 +723,13 @@ window.RC=(function(){
       const img=await loadImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg));
       c=document.createElement('canvas');c.width=Math.round(W*sc);c.height=Math.round(H*sc);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.scale(sc,sc);x.drawImage(img,0,0);
       c.toDataURL('image/jpeg',.1)}  /* vérifie que l'image est exportable */
-    catch(e){c=await legacyImage(rec)}
+    catch(e){lastErr='rendu : '+(e&&e.message||e);c=await legacyImage(rec)}
     let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));
     if(!blob){const d=c.toDataURL('image/jpeg',.88),bin=atob(d.split(',')[1]),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return{bytes:u,w:c.width,h:c.height}}
     return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
   /* secours : fond image (ou page simple) et superposition */
-  async function legacyImage(rec){let bg=bgImg;if(!bg){bg=await loadBg();if(bg)bgImg=bg;else bg=plainPage()}
+  let lastErr='';
+  async function legacyImage(rec){let bg=bgImg;if(!bg){bg=await loadBg();if(bg)bgImg=bg;else{bg=plainPage();if(!rec.preview)toast('Version simplifiée du document ('+lastErr+'). Faites une capture de ce message.')}}
     const bw0=bg.naturalWidth||bg.width,bh0=bg.naturalHeight||bg.height;
     try{await Promise.race([document.fonts.load('700 20px "Atkinson Hyperlegible"'),new Promise(r=>setTimeout(r,1500))])}catch(e){}
     const c=document.createElement('canvas');c.width=bw0;c.height=bh0;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bg,0,0);

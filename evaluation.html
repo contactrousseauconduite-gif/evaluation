@@ -577,12 +577,13 @@ window.RC=(function(){
       const img=await loadImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg));
       c=document.createElement('canvas');c.width=Math.round(W*sc);c.height=Math.round(H*sc);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.scale(sc,sc);x.drawImage(img,0,0);
       c.toDataURL('image/jpeg',.1)}  /* vérifie que l'image est exportable */
-    catch(e){c=await legacyImage(rec)}
+    catch(e){lastErr='rendu : '+(e&&e.message||e);c=await legacyImage(rec)}
     let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));
     if(!blob){const d=c.toDataURL('image/jpeg',.88),bin=atob(d.split(',')[1]),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return{bytes:u,w:c.width,h:c.height}}
     return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
   /* secours : fond image (ou page simple) et superposition */
-  async function legacyImage(rec){let bg=bgImg;if(!bg){bg=await loadBg();if(bg)bgImg=bg;else bg=plainPage()}
+  let lastErr='';
+  async function legacyImage(rec){let bg=bgImg;if(!bg){bg=await loadBg();if(bg)bgImg=bg;else{bg=plainPage();if(!rec.preview)toast('Version simplifiée du document ('+lastErr+'). Faites une capture de ce message.')}}
     const bw0=bg.naturalWidth||bg.width,bh0=bg.naturalHeight||bg.height;
     try{await Promise.race([document.fonts.load('700 20px "Atkinson Hyperlegible"'),new Promise(r=>setTimeout(r,1500))])}catch(e){}
     const c=document.createElement('canvas');c.width=bw0;c.height=bh0;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bg,0,0);
