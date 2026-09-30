@@ -605,7 +605,7 @@ window.RC=(function(){
     const size=()=>{const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.max(1,Math.round(r.width*d));cv.height=Math.max(1,Math.round(r.height*d));
       x.setTransform(d,0,0,d,0,0);x.lineCap='round';x.lineJoin='round';x.strokeStyle='#1C2B40';x.fillStyle='#1C2B40';ink=false};
     size();const pt=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,p:e.pressure&&e.pointerType==='pen'?e.pressure:.5}};
-    cv.addEventListener('pointerdown',e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);on=true;last=pt(e);x.beginPath();x.arc(last.x,last.y,1.2,0,7);x.fill();ink=true});
+    cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}on=true;last=pt(e);x.beginPath();x.arc(last.x,last.y,1.2,0,7);x.fill();ink=true});
     cv.addEventListener('pointermove',e=>{if(!on)return;const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];evs.forEach(q=>{const p=pt(q);x.lineWidth=1.6+p.p*2.2;x.beginPath();x.moveTo(last.x,last.y);x.lineTo(p.x,p.y);x.stroke();last=p})});
     const end=()=>{on=false};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
     return{clear:size,empty:()=>!ink,
@@ -618,9 +618,20 @@ window.RC=(function(){
   const loadImg=src=>new Promise((res,rej)=>{const im=new Image();let t=setTimeout(()=>rej(new Error('image trop longue à charger')),15000);
     im.onload=()=>{clearTimeout(t);res(im)};im.onerror=()=>{clearTimeout(t);rej(new Error('image illisible'))};im.src=src});
   let bgImg=null;
-  async function signedImage(rec){const bg=bgImg||(bgImg=await loadImg(DP.img).catch(e=>{bgImg=null;throw e}));
+  async function loadBg(){try{return await loadImg(DP.img)}catch(e1){try{const r=await fetch(DP.img+'?r='+Date.now(),{cache:'reload'});if(!r.ok)throw new Error('HTTP '+r.status);return await loadImg(URL.createObjectURL(await r.blob()))}catch(e2){return null}}}
+  function plainPage(){const c=document.createElement('canvas');c.width=1400;c.height=1982;const x=c.getContext('2d'),s=c.width/DP.pw;x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+    x.fillStyle='#22416D';x.font=`700 ${28*s}px Arial, sans-serif`;x.fillText('Vos données personnelles',53*s,90*s);
+    x.fillStyle='#23798A';x.font=`700 ${13*s}px Arial, sans-serif`;x.fillText('Information aux élèves, Rousseau Conduite',53*s,115*s);
+    x.fillStyle='#1C2B40';x.font=`400 ${13*s}px Arial, sans-serif`;
+    ['Rousseau Conduite note quelques informations vous concernant pour votre formation au permis de conduire','(identité, contact, parcours, suivi pédagogique). Elles restent sur la tablette de votre enseignant, ne sont','ni vendues ni transmises, et sont gardées 3 ans après la fin de la formation. Vous pouvez à tout moment','demander à y accéder, les corriger ou les supprimer : contactrousseauconduite@gmail.com.'].forEach((l,i)=>x.fillText(l,53*s,(170+i*22)*s));
+    x.fillStyle='#22416D';x.font=`700 ${15*s}px Arial, sans-serif`;x.fillText('J’ai pris connaissance de cette information',64*s,955*s);
+    const lab={nom:'Nom et prénom de l’élève',date:'Date',sigE:'Signature de l’élève',sigP:'Représentant légal (si mineur)'};
+    Object.entries(DP.box).forEach(([k,[bx,by,bw,bh]])=>{x.strokeStyle='#9AA9B6';x.lineWidth=1.5*s;x.strokeRect(bx*s,by*s,bw*s,bh*s);x.fillStyle='#5A6B7C';x.font=`400 ${11*s}px Arial, sans-serif`;x.fillText(lab[k],(bx+7)*s,(by+15)*s)});
+    x.fillStyle='#5A6B7C';x.font=`400 ${10*s}px Arial, sans-serif`;x.fillText('Rousseau Conduite, contactrousseauconduite@gmail.com',53*s,1085*s);return c}
+  async function signedImage(rec){let bg=bgImg;if(!bg){bg=await loadBg();if(bg)bgImg=bg;else bg=plainPage()}
+    const bw0=bg.naturalWidth||bg.width,bh0=bg.naturalHeight||bg.height;
     try{await Promise.race([document.fonts.load('700 20px "Atkinson Hyperlegible"'),new Promise(r=>setTimeout(r,1500))])}catch(e){}
-    const c=document.createElement('canvas');c.width=bg.naturalWidth;c.height=bg.naturalHeight;const x=c.getContext('2d');x.drawImage(bg,0,0);
+    const c=document.createElement('canvas');c.width=bw0;c.height=bh0;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bg,0,0);
     const s=c.width/DP.pw,B=k=>DP.box[k].map(v=>v*s);
     const text=(k,t)=>{const[bx,by,bw]=B(k);let f=13;x.fillStyle='#1C2B40';x.textBaseline='alphabetic';
       do{x.font=`700 ${f*s}px "Atkinson Hyperlegible", Arial, sans-serif`;f-=.5}while(x.measureText(t).width>bw-14*s&&f>7);x.fillText(t,bx+7*s,by+48*s)};
@@ -640,14 +651,20 @@ window.RC=(function(){
       `Voici une copie du document « Vos données personnelles » ${T(tu,'que tu as signé','que vous avez signé')} le ${fdate(rec.date)}.`,
       `${T(tu,'Garde-le','Gardez-le')} : il explique quelles informations je note pour ${T(tu,'ta','votre')} formation et comment les consulter, les corriger ou les faire supprimer.`,'','Fabien','Rousseau Conduite'].join('\n')}],
       attach:{title:'Joindre le document signé',label:`Vos données personnelles, signé le ${fdate(rec.date)}`,kind:'PDF',make:async()=>(await pre).pdf,img:async()=>(await pre).jpg}})}
-  async function viewSigned(rec,opt){opt=opt||{};const im=await signedImage(rec),url=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));
+  async function viewSigned(rec,opt){opt=opt||{};let url=null;
     const el=modal('sgv',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
       <p class="shm-note" style="margin:0">Signé le ${esc(fdate(rec.date))} par ${esc(rec.nom)}${rec.minor?' et son représentant légal':''}.</p>
-      <img src="${url}" alt="Document signé"><div class="sgv-act"><button type="button" class="btn primary" data-send>Envoyer à l’élève</button><button type="button" class="btn" data-dl>Télécharger</button></div>${opt.onResign?`<button type="button" class="btn" data-re style="width:100%">Refaire signer</button>`:''}`);
-    el.addEventListener('click',async ev=>{const b=ev.target.closest('button');if(ev.target===el||(b&&b.dataset.x!=null)){URL.revokeObjectURL(url);el._close();return}if(!b)return;
-      if(b.dataset.send!=null){URL.revokeObjectURL(url);el._close();sendSigned(rec)}
-      if(b.dataset.re!=null){URL.revokeObjectURL(url);el._close();opt.onResign()}
-      if(b.dataset.dl!=null){const f=await pickFormat('Télécharger le document signé','Dans quel format ?');if(!f)return;downloadFile(f==='jpg'?await signedJpeg(rec):await signedPdf(rec));toast('Document téléchargé')}})}
+      <div data-pv style="min-height:120px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:#fff;color:#5A6B7C;padding:8px">Préparation du document…</div>
+      <div class="sgv-act"><button type="button" class="btn primary" data-send>Envoyer à l’élève</button><button type="button" class="btn" data-dl>Télécharger</button></div>${opt.onResign?`<button type="button" class="btn" data-re style="width:100%">Refaire signer</button>`:''}`);
+    const pv=el.querySelector('[data-pv]'),close=()=>{if(url)URL.revokeObjectURL(url);el._close()};
+    signedImage(rec).then(im=>{if(!el.isConnected)return;url=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));pv.style.cssText='';pv.innerHTML=`<img src="${url}" alt="Document signé">`})
+      .catch(e=>{pv.innerHTML=`<div style="text-align:center"><b style="color:#B3261E">Le document n’a pas pu être préparé.</b><br><small>${esc(e&&e.message||String(e))}</small><br><small>La signature reste bien enregistrée dans le dossier.</small></div>
+        ${rec.sigE?`<img src="${rec.sigE}" alt="Signature de l’élève" style="max-height:80px;margin-top:8px">`:''}`});
+    el.addEventListener('click',async ev=>{const b=ev.target.closest('button');if(ev.target===el||(b&&b.dataset.x!=null)){close();return}if(!b)return;
+      if(b.dataset.send!=null){close();sendSigned(rec)}
+      if(b.dataset.re!=null){close();opt.onResign()}
+      if(b.dataset.dl!=null){const f=await pickFormat('Télécharger le document signé','Dans quel format ?');if(!f)return;
+        try{downloadFile(f==='jpg'?await signedJpeg(rec):await signedPdf(rec));toast('Document téléchargé')}catch(e){toast('Téléchargement impossible ('+(e&&e.message||e)+')')}}})}
   /* rappel dans les fiches (évaluation de départ, bilan) */
   function dpBlock(eleveId){sgCss();const r=eleveId?signe(eleveId):null;
     return `<div class="dp-card${r?' ok':''}" data-dp-card>${r?`<span class="dp-ic" aria-hidden="true">✓</span><div><b>Vos données personnelles</b><small>Signé le ${esc(fdate(r.date))}</small></div><button type="button" class="dp-lk" data-dp-view>Voir</button>`:
