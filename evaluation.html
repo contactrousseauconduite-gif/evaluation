@@ -459,7 +459,7 @@ window.RC=(function(){
   }
   function closeShare(){if(shm){shm.remove();shm=null;document.documentElement.style.overflow=''}}
   const pages=(b,n,pad)=>Array.from({length:n},(_,i)=>`${b}-${pad?String(i+1).padStart(2,'0'):i+1}.jpg`);
-  const DOCS=[{url:'presentation-rousseau-conduite.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-page',3),
+  const DOCS=[{url:'presentation-rousseau-conduite-v2.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-v2-page',3),
      text:'Bonjour,\n\nComme convenu au téléphone, voici ma présentation et les étapes pour vous inscrire. Vous y trouverez aussi les points de rendez-vous et les liens utiles.\n\nN’hésitez pas à me contacter si vous avez la moindre question.\n\nFabien\nRousseau Conduite'},
     {url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-page',2)},
     {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-page',11,true)},
