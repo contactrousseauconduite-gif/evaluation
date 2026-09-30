@@ -399,7 +399,7 @@ a.card{text-decoration:none;color:inherit}
 <section class="block save"><div><b>Sauvegarde</b><span data-bk-last></span><span class="save-tip">Touchez « Sauvegarder dans Drive », puis choisissez <b>Drive</b> dans la liste et votre dossier « Rousseau Conduite ». Pour restaurer, choisissez le fichier depuis Drive.</span></div>
   <div class="save-act"><button type="button" class="btn go" data-bk-now><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l6 10-4 7H6l-4-7z"/><path d="M8 3l6 10h8M2 13h12l-4 7"/></svg>Sauvegarder dans Drive</button><button type="button" class="btn quiet" id="restoreBtn">Restaurer</button><button type="button" class="btn quiet" data-bk-dl>Télécharger</button></div>
   <input type="file" accept=".json,.txt,application/json,text/plain" id="restoreFile" hidden></section>
-<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 41</p>
+<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 42</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -840,7 +840,7 @@ window.RC=(function(){
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();try{syncHeures()}catch(e){}
   return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
-    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,syncHeures,heures,toggleLecon,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
+    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,syncHeures,heures,toggleLecon,jpegPdf,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
