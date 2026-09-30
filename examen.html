@@ -474,9 +474,9 @@ window.RC=(function(){
       else if(b.dataset.shmShare!=null){const att=el.querySelector('[data-shm-att]');
         if(o.attach&&att&&att.getAttribute('aria-pressed')==='true'){b.disabled=true;const lab=b.textContent;const useImg=o.attach.img&&fmt==='jpg';b.textContent=useImg?'Préparation de l’image…':'Préparation du PDF…';
           try{const file=useImg?await o.attach.img():await o.attach.make();
-            if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:o.title,text:ta.value})}catch(e){if(!(e&&e.name==='AbortError'))toast('Partage impossible ici')}}
+            if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:o.title,text:ta.value})}catch(e){if(!(e&&e.name==='AbortError')){downloadFile(file);await copyText(ta.value);toast((useImg?'Image':(o.attach.kind||'PDF'))+' téléchargé'+(useImg?'e':'')+' et message copié : joignez-le à votre message')}}}
             else{downloadFile(file);await copyText(ta.value);toast((useImg?'Image':(o.attach.kind||'PDF'))+' téléchargé'+(useImg?'e':'')+' et message copié : joignez-le à votre message')}}
-          catch(e){toast('Impossible de créer le fichier');shareText(o.title,ta.value)}
+          catch(e){toast('Impossible de créer le fichier'+(e&&e.message?' ('+e.message+')':''))}
           finally{b.disabled=false;b.textContent=lab}}
         else shareText(o.title,ta.value)}
       else if(b.dataset.shmCopy!=null)toast(await copyText(ta.value)?'Message copié':'Copie impossible ici');
@@ -574,25 +574,31 @@ window.RC=(function(){
         const sc=Math.min(1,600/(x1-x0+1)),c=document.createElement('canvas');c.width=Math.round((x1-x0+1)*sc);c.height=Math.round((y1-y0+1)*sc);
         c.getContext('2d').drawImage(cv,x0,y0,x1-x0+1,y1-y0+1,0,0,c.width,c.height);return c.toDataURL('image/png')}}}
   /* image du document rempli et signé */
-  async function signedImage(rec){const bg=new Image();bg.src=DP.img;await bg.decode();
-    try{await document.fonts.load('700 20px "Atkinson Hyperlegible"')}catch(e){}
+  const loadImg=src=>new Promise((res,rej)=>{const im=new Image();let t=setTimeout(()=>rej(new Error('image trop longue à charger')),15000);
+    im.onload=()=>{clearTimeout(t);res(im)};im.onerror=()=>{clearTimeout(t);rej(new Error('image illisible'))};im.src=src});
+  let bgImg=null;
+  async function signedImage(rec){const bg=bgImg||(bgImg=await loadImg(DP.img).catch(e=>{bgImg=null;throw e}));
+    try{await Promise.race([document.fonts.load('700 20px "Atkinson Hyperlegible"'),new Promise(r=>setTimeout(r,1500))])}catch(e){}
     const c=document.createElement('canvas');c.width=bg.naturalWidth;c.height=bg.naturalHeight;const x=c.getContext('2d');x.drawImage(bg,0,0);
     const s=c.width/DP.pw,B=k=>DP.box[k].map(v=>v*s);
     const text=(k,t)=>{const[bx,by,bw]=B(k);let f=13;x.fillStyle='#1C2B40';x.textBaseline='alphabetic';
       do{x.font=`700 ${f*s}px "Atkinson Hyperlegible", Arial, sans-serif`;f-=.5}while(x.measureText(t).width>bw-14*s&&f>7);x.fillText(t,bx+7*s,by+48*s)};
     text('nom',rec.nom||'');text('date',fdate(rec.date));
-    const sig=async(k,url)=>{if(!url)return;const im=new Image();im.src=url;await im.decode();const[bx,by,bw,bh]=B(k),aw=bw-12*s,ah=bh-24*s,r=Math.min(aw/im.width,ah/im.height);
+    const sig=async(k,url)=>{if(!url)return;const im=await loadImg(url);const[bx,by,bw,bh]=B(k),aw=bw-12*s,ah=bh-24*s,r=Math.min(aw/im.width,ah/im.height);
       const w=im.width*r,h=im.height*r;x.drawImage(im,bx+6*s+(aw-w)/2,by+19*s+(ah-h)/2,w,h)};
     await sig('sigE',rec.sigE);if(rec.minor)await sig('sigP',rec.sigP);else if(!rec.preview){const[bx,by,bw]=B('sigP');x.font=`400 ${10*s}px Arial, sans-serif`;x.fillStyle='#9AA9B6';x.fillText('Sans objet',bx+7*s,by+46*s)}
-    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
+    let blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));
+    if(!blob){const d=c.toDataURL('image/jpeg',.88),bin=atob(d.split(',')[1]),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return{bytes:u,w:c.width,h:c.height}}
+    return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
   const sgName=rec=>fileName('donnees-personnelles-signe',rec.nom,rec.date);
   async function signedPdf(rec){return new File([jpegPdf(await signedImage(rec))],sgName(rec),{type:'application/pdf'})}
   async function signedJpeg(rec){return new File([(await signedImage(rec)).bytes],sgName(rec).replace(/\.pdf$/,'.jpg'),{type:'image/jpeg'})}
   function sendSigned(rec){const e=eleve(rec.eleveId)||{},p=e.prenom||'';
+    const pre=signedImage(rec).then(im=>({pdf:new File([jpegPdf(im)],sgName(rec),{type:'application/pdf'}),jpg:new File([im.bytes],sgName(rec).replace(/\.pdf$/,'.jpg'),{type:'image/jpeg'})}));pre.catch(()=>{});
     openShare({title:'Document signé pour '+(rec.nom||full(e)),tel:e.tel||'',templates:[{id:'dp',label:'Données personnelles',build:tu=>[`Bonjour${p?' '+p:''},`,'',
       `Voici une copie du document « Vos données personnelles » ${T(tu,'que tu as signé','que vous avez signé')} le ${fdate(rec.date)}.`,
       `${T(tu,'Garde-le','Gardez-le')} : il explique quelles informations je note pour ${T(tu,'ta','votre')} formation et comment les consulter, les corriger ou les faire supprimer.`,'','Fabien','Rousseau Conduite'].join('\n')}],
-      attach:{title:'Joindre le document signé',label:`Vos données personnelles, signé le ${fdate(rec.date)}`,kind:'PDF',make:()=>signedPdf(rec),img:()=>signedJpeg(rec)}})}
+      attach:{title:'Joindre le document signé',label:`Vos données personnelles, signé le ${fdate(rec.date)}`,kind:'PDF',make:async()=>(await pre).pdf,img:async()=>(await pre).jpg}})}
   async function viewSigned(rec,opt){opt=opt||{};const im=await signedImage(rec),url=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));
     const el=modal('sgv',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
       <p class="shm-note" style="margin:0">Signé le ${esc(fdate(rec.date))} par ${esc(rec.nom)}${rec.minor?' et son représentant légal':''}.</p>
