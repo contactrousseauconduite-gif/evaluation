@@ -312,7 +312,7 @@ details.more[open]{padding-bottom:12px}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',hr:'rc:heures',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -343,12 +343,34 @@ window.RC=(function(){
     /* garder les noms des fiches à jour */
     [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg,K.hr].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
   const carnet=id=>list(K.ca).find(x=>x.eleveId===id)||null;
   function saveCarnet(eleveId,d){const l=list(K.ca).filter(x=>x.eleveId!==eleveId),rec={id:'c-'+eleveId,v:1,eleveId,profil:d.profil||{},trips:Array.isArray(d.trips)?d.trips:[],exportedAt:d.exportedAt||Date.now(),updatedAt:Date.now()};l.push(rec);set(K.ca,JSON.stringify(l));return rec}
   function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
     [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
     if(ch)set(k,JSON.stringify(recs))})}
+  /* ---------- heures réalisées, d'après l'agenda Ornikar ---------- */
+  /* Chaque leçon passée de l'agenda est gardée dans un journal : elle reste comptée même quand Ornikar la retire du fichier. */
+  function icsEvents(text){const un=[];String(text||'').replace(/\r\n?/g,'\n').split('\n').forEach(l=>{if(/^[ \t]/.test(l)&&un.length)un[un.length-1]+=l.slice(1);else un.push(l)});
+    const pd=v=>{const m=(v||'').match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);if(!m)return null;const[,y,mo,d,h='0',mi='0',ss='0',z]=m;return z?new Date(Date.UTC(+y,+mo-1,+d,+h,+mi,+ss)):new Date(+y,+mo-1,+d,+h,+mi,+ss)};
+    const ev=[];let c=null;un.forEach(l=>{if(l==='BEGIN:VEVENT'){c={};return}if(l==='END:VEVENT'){if(c&&c.start)ev.push(c);c=null;return}if(!c)return;const i=l.indexOf(':');if(i<0)return;
+      const name=l.slice(0,i).split(';')[0],val=l.slice(i+1);if(name==='DTSTART')c.start=pd(val);else if(name==='DTEND')c.end=pd(val);else if(name==='SUMMARY')c.title=val.replace(/\\([,;\\])/g,'$1').trim();
+      else if(name==='DESCRIPTION')c.desc=val.replace(/\\n/gi,' ').replace(/\\([,;\\])/g,'$1');else if(name==='UID')c.uid=val.trim();else if(name==='STATUS')c.status=val.trim().toUpperCase()});
+    return ev.filter(e=>e.status!=='CANCELLED')}
+  function icsMatch(ev,l){const t=String(ev.title||'').trim(),m=t.match(/^(.*?)\s+avec\s+([A-ZÀ-ÖØ-Ý].+)$/);
+    if(m){const who=m[2].trim(),n=who.match(/^(.+?)\s+([A-ZÀ-ÖØ-Ý])\.?$/),P=norm(n?n[1]:who),I=n?norm(n[2]):'';
+      const c=l.filter(x=>norm(x.prenom)===P&&(!I||!x.nom||norm(x.nom).startsWith(I)));if(c.length===1)return c[0]}
+    const txt=norm([ev.title,ev.desc].join(' '));if(!txt)return null;let r=l.find(x=>x.nom&&x.prenom&&txt.includes(norm(x.prenom))&&txt.includes(norm(x.nom)));
+    if(!r){const c=l.filter(x=>x.prenom&&norm(x.prenom).length>2&&txt.includes(norm(x.prenom)));if(c.length===1)r=c[0]}return r||null}
+  function syncHeures(){const txt=get('rc:ics:data');if(!txt)return;const l=eleves();if(!l.length)return;
+    const log=list(K.hr),have=new Set(log.map(x=>x.id)),now=Date.now();let add=0;
+    icsEvents(txt).forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(end.getTime()>now)return;const e=icsMatch(ev,l);if(!e)return;
+      const id='h-'+(ev.uid||'')+'-'+ev.start.getTime();if(have.has(id))return;have.add(id);
+      log.push({id,v:1,eleveId:e.id,start:ev.start.getTime(),min:Math.max(0,Math.round((end-ev.start)/6e4)),title:ev.title||'',updatedAt:Date.now()});add++});
+    if(add)set(K.hr,JSON.stringify(log))}
+  const lecons=id=>list(K.hr).filter(x=>x.eleveId===id).sort((a,b)=>b.start-a.start);
+  function heures(id){const e=eleve(id),l=lecons(id),min=l.filter(x=>!x.off).reduce((a,x)=>a+(x.min||0),0),adj=e&&+e.heuresAjust||0;return{lecons:l,min,adj,total:min/60+adj,n:l.filter(x=>!x.off).length}}
+  function toggleLecon(lid){const log=list(K.hr),x=log.find(q=>q.id===lid);if(!x)return;x.off=!x.off;x.updatedAt=Date.now();set(K.hr,JSON.stringify(log))}
   const recordsOf=id=>({ev:list(K.ev).filter(x=>x.eleveId===id),ex:list(K.ex).filter(x=>x.eleveId===id),bi:list(K.bi).filter(x=>x.eleveId===id),de:list(K.de).filter(x=>x.eleveId===id),ca:carnet(id)});
 
   /* sélecteur d'élève dans les fiches */
@@ -371,9 +393,9 @@ window.RC=(function(){
   function status(){const n=list(K.ev).length+list(K.ex).length+list(K.bi).length,last=+get(K.last)||0;
     return{n,last,days:last?Math.floor((Date.now()-last)/DAY):null}}
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
-  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),sg=list(K.sg),el=eleves();
+  async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),sg=list(K.sg),hr=list(K.hr),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,heures:hr,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
@@ -385,10 +407,10 @@ window.RC=(function(){
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
     try{const d=JSON.parse(await file.text());
-      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId),sg=mergeInto(K.sg,d.signes,x=>x.v===1&&x.eleveId);
+      const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId),sg=mergeInto(K.sg,d.signes,x=>x.v===1&&x.eleveId),hr=mergeInto(K.hr,d.heures,x=>x.v===1&&x.eleveId);
       if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
-      if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!sg&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
+      if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!sg&&!hr&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
     catch(e){toast('Fichier de sauvegarde non reconnu');return false}}
   function check(){const el=document.getElementById('bkBanner');if(!el)return;const s=status();
@@ -698,9 +720,9 @@ window.RC=(function(){
     if(r.projected!=null)r.state=r.projected<=allow?'ok':r.projected<=allow*1.05?'warn':'over';
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
-  syncAll();
+  syncAll();try{syncHeures()}catch(e){}
   return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
-    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
+    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,syncHeures,heures,toggleLecon,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
