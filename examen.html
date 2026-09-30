@@ -583,7 +583,7 @@ window.RC=(function(){
     text('nom',rec.nom||'');text('date',fdate(rec.date));
     const sig=async(k,url)=>{if(!url)return;const im=new Image();im.src=url;await im.decode();const[bx,by,bw,bh]=B(k),aw=bw-12*s,ah=bh-24*s,r=Math.min(aw/im.width,ah/im.height);
       const w=im.width*r,h=im.height*r;x.drawImage(im,bx+6*s+(aw-w)/2,by+19*s+(ah-h)/2,w,h)};
-    await sig('sigE',rec.sigE);if(rec.minor)await sig('sigP',rec.sigP);else{const[bx,by,bw]=B('sigP');x.font=`400 ${10*s}px Arial, sans-serif`;x.fillStyle='#9AA9B6';x.fillText('Sans objet',bx+7*s,by+46*s)}
+    await sig('sigE',rec.sigE);if(rec.minor)await sig('sigP',rec.sigP);else if(!rec.preview){const[bx,by,bw]=B('sigP');x.font=`400 ${10*s}px Arial, sans-serif`;x.fillStyle='#9AA9B6';x.fillText('Sans objet',bx+7*s,by+46*s)}
     const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));return{bytes:new Uint8Array(await blob.arrayBuffer()),w:c.width,h:c.height}}
   const sgName=rec=>fileName('donnees-personnelles-signe',rec.nom,rec.date);
   async function signedPdf(rec){return new File([jpegPdf(await signedImage(rec))],sgName(rec),{type:'application/pdf'})}
@@ -593,12 +593,13 @@ window.RC=(function(){
       `Voici une copie du document « Vos données personnelles » ${T(tu,'que tu as signé','que vous avez signé')} le ${fdate(rec.date)}.`,
       `${T(tu,'Garde-le','Gardez-le')} : il explique quelles informations je note pour ${T(tu,'ta','votre')} formation et comment les consulter, les corriger ou les faire supprimer.`,'','Fabien','Rousseau Conduite'].join('\n')}],
       attach:{title:'Joindre le document signé',label:`Vos données personnelles, signé le ${fdate(rec.date)}`,kind:'PDF',make:()=>signedPdf(rec),img:()=>signedJpeg(rec)}})}
-  async function viewSigned(rec){const im=await signedImage(rec),url=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));
+  async function viewSigned(rec,opt){opt=opt||{};const im=await signedImage(rec),url=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));
     const el=modal('sgv',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
       <p class="shm-note" style="margin:0">Signé le ${esc(fdate(rec.date))} par ${esc(rec.nom)}${rec.minor?' et son représentant légal':''}.</p>
-      <img src="${url}" alt="Document signé"><div class="sgv-act"><button type="button" class="btn primary" data-send>Envoyer à l’élève</button><button type="button" class="btn" data-dl>Télécharger</button></div>`);
+      <img src="${url}" alt="Document signé"><div class="sgv-act"><button type="button" class="btn primary" data-send>Envoyer à l’élève</button><button type="button" class="btn" data-dl>Télécharger</button></div>${opt.onResign?`<button type="button" class="btn" data-re style="width:100%">Refaire signer</button>`:''}`);
     el.addEventListener('click',async ev=>{const b=ev.target.closest('button');if(ev.target===el||(b&&b.dataset.x!=null)){URL.revokeObjectURL(url);el._close();return}if(!b)return;
       if(b.dataset.send!=null){URL.revokeObjectURL(url);el._close();sendSigned(rec)}
+      if(b.dataset.re!=null){URL.revokeObjectURL(url);el._close();opt.onResign()}
       if(b.dataset.dl!=null){const f=await pickFormat('Télécharger le document signé','Dans quel format ?');if(!f)return;downloadFile(f==='jpg'?await signedJpeg(rec):await signedPdf(rec));toast('Document téléchargé')}})}
   /* rappel dans les fiches (évaluation de départ, bilan) */
   function dpBlock(eleveId){sgCss();const r=eleveId?signe(eleveId):null;
@@ -630,19 +631,25 @@ window.RC=(function(){
   async function signDonnees(eleveId,onDone){if(!eleveId){eleveId=await pickEleve();if(!eleveId)return}
     const e=eleve(eleveId);if(!e){toast('Élève introuvable');return}const a=ageOf(e.naissance);let minor=a!=null&&a<18;
     const el=modal('sgm',`<div class="shm-h"><b>Vos données personnelles</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
-      <p class="shm-note" style="margin:0">Faites lire le document à l’élève, puis faites-le signer ci-dessous.</p>
-      <div class="sgm-doc"><img src="${DP.img}" alt="Document Vos données personnelles"></div>
+      <p class="shm-note" style="margin:0">La feuille est remplie au nom de l’élève. Faites-lui lire le document, puis faites-le signer ci-dessous.</p>
+      <div class="sgm-doc"><img data-prev src="${DP.img}" alt="Document Vos données personnelles, rempli au nom de l’élève"></div>
       <div class="sgm-g"><label>Nom et prénom de l’élève<input type="text" data-nom value="${esc([e.nom,e.prenom].filter(Boolean).join(' '))}"></label><label>Date<input type="date" data-date value="${iso(Date.now())}"></label></div>
       <div class="seg" data-minor><button type="button" data-v="0" aria-pressed="${!minor}">Élève majeur</button><button type="button" data-v="1" aria-pressed="${minor}">Élève mineur</button></div>
       <div class="sgm-pads${minor?' two':''}"><div><div class="sgm-ph"><span>Signature de l’élève</span><button type="button" data-clear="E">Effacer</button></div><canvas data-pad="E"></canvas></div>
         <div data-pw ${minor?'':'hidden'}><div class="sgm-ph"><span>Signature du représentant légal</span><button type="button" data-clear="P">Effacer</button></div><canvas data-pad="P"></canvas></div></div>
       <div class="sgm-act"><button type="button" class="btn primary" data-ok>Valider la signature</button><button type="button" class="btn" data-x>Annuler</button></div>`);
     const pads={E:sigPad(el.querySelector('[data-pad=E]')),P:sigPad(el.querySelector('[data-pad=P]'))};
+    /* aperçu : la feuille se remplit avec le nom et la date */
+    let pvT,pvU=null,first=true;const box=el.querySelector('.sgm-doc'),pim=el.querySelector('[data-prev]');
+    const prev=async()=>{try{const im=await signedImage({nom:el.querySelector('[data-nom]').value.trim(),date:el.querySelector('[data-date]').value,minor,preview:true});
+      if(!el.isConnected)return;const u=URL.createObjectURL(new Blob([im.bytes],{type:'image/jpeg'}));pim.onload=()=>{if(first){box.scrollTop=box.scrollHeight;first=false}};pim.src=u;if(pvU)URL.revokeObjectURL(pvU);pvU=u}catch(e){}};
+    prev();el.addEventListener('input',ev=>{if(ev.target.matches('[data-nom],[data-date]')){clearTimeout(pvT);pvT=setTimeout(prev,350)}});
+    const close0=el._close;el._close=()=>{if(pvU)URL.revokeObjectURL(pvU);close0()};
     el.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
       if(b.dataset.x!=null){if((!pads.E.empty()||!pads.P.empty())&&!confirm('Abandonner la signature ?'))return;el._close();return}
       if(b.dataset.clear){pads[b.dataset.clear].clear();return}
       if(b.closest('[data-minor]')){minor=b.dataset.v==='1';b.parentElement.querySelectorAll('button').forEach(q=>q.setAttribute('aria-pressed',q===b));
-        el.querySelector('[data-pw]').hidden=!minor;el.querySelector('.sgm-pads').classList.toggle('two',minor);pads.E.clear();pads.P.clear();return}
+        el.querySelector('[data-pw]').hidden=!minor;el.querySelector('.sgm-pads').classList.toggle('two',minor);pads.E.clear();pads.P.clear();prev();return}
       if(b.dataset.ok!=null){const nom=el.querySelector('[data-nom]').value.trim(),date=el.querySelector('[data-date]').value||iso(Date.now());
         if(!nom){toast('Indiquez le nom et le prénom');return}
         if(pads.E.empty()){toast('Il manque la signature de l’élève');return}
