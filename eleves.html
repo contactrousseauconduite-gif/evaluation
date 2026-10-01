@@ -237,6 +237,7 @@ a.card{text-decoration:none;color:inherit}
 .acts2 .btn.sec{background:var(--surface);color:var(--ink);border-color:var(--line)}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.tile .tx{font-size:.72rem;color:var(--tealtext);font-weight:700}
 .tile.tbtn{font:inherit;color:inherit;text-align:left;cursor:pointer}.tile small{font-size:.72rem;color:var(--tealtext);font-weight:700}
 .hm-tot{display:flex;align-items:baseline;gap:10px}.hm-tot b{font-family:var(--display);font-weight:800;font-size:2rem}.hm-tot span{color:var(--muted);font-weight:700}
 .hm-adj{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg);border-radius:12px;padding:10px 12px}.hm-adj>span{display:flex;flex-direction:column;font-weight:700;font-size:.92rem}.hm-adj small{font-weight:400;color:var(--muted);font-size:.8rem}
@@ -869,7 +870,7 @@ function renderDossier(id){
     <button type="button" class="btn sec" id="msgBtn">Envoyer un message</button><button type="button" class="btn sec" id="memoBtn">Partager un document</button></div>
 
   <div class="tiles">
-    <div class="tile"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b></div>
+    <div class="tile"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&le&&+le.hExam?`<small class="tx">+ ${+le.hExam} h pour l’examen</small>`:''}</div>
     ${(()=>{const H=RC.heures(e.id),ag=H.lecons.length>0||H.adj!==0;
       return `<button type="button" class="tile tbtn" id="hBtn"><span>Heures effectuées</span><b>${ag?fmtH(H.total):lastH!=null?esc(String(lastH).replace('.',','))+' h':'–'}</b><small>${ag?`${H.n} leçon${H.n>1?'s':''} · détail`:'Voir le détail'}</small></button>`})()}
     <div class="tile"><span>Examens blancs réussis</span><b>${d.ex.length?`${ok} sur ${d.ex.length}`:'–'}</b></div>

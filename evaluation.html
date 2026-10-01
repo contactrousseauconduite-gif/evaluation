@@ -122,6 +122,12 @@ details.help li b{display:inline-block;min-width:1.8rem;color:var(--ink)}
 .step:disabled{opacity:.35;cursor:default}
 .meta{font-size:.88rem;opacity:.95}
 .reset{background:none;border:0;color:#fff;text-decoration:underline;font-size:.86rem;cursor:pointer;margin-top:4px}
+.exh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.25)}
+.exl{display:flex;flex-direction:column;text-align:left}.exl b{font-size:.95rem}.exl small{opacity:.85;font-size:.78rem}
+.exs{display:flex;align-items:center;gap:8px}.exs b{min-width:2.6rem;text-align:center;font-family:var(--display);font-size:1.15rem}
+.step.sm{width:38px;height:38px;font-size:1.1rem}
+.extot{margin-top:8px;font-size:.88rem}
+.exnote{margin:0;font-size:.85rem;color:var(--muted)}.exnote:empty{display:none}
 .fine{font-size:.8rem;color:var(--muted);margin:6px 0 0;font-style:italic}
 
 .pad-wrap{margin-top:12px}
@@ -753,14 +759,17 @@ const getP=(o,p)=>p.split('.').reduce((a,k)=>a==null?a:a[k],o);
 const setP=(o,p,v)=>{const ks=p.split('.');let a=o;ks.slice(0,-1).forEach(k=>{a[k]=a[k]||{};a=a[k]});a[ks[ks.length-1]]=v};
 
 function pro(){let p={};try{p=JSON.parse(lsGet(LS_PRO))||{}}catch(e){}return{formateur:p.formateur||'Fabien',autorisation:p.autorisation||'A1800300020'}}
+/* heures pour le passage de l’examen pratique : non comprises dans les packs Ornikar, ajoutées en plus du volume calculé */
+const defExam=()=>{const v=lsGet('rc:hExam');return v!=null&&v!==''&&!isNaN(+v)?+v:2};
+const hEx=()=>+S.hExam||0;
 function blank(){const p=pro();return{v:2,id:newId(),createdAt:Date.now(),updatedAt:Date.now(),date:todayISO(),
   nom:'',prenom:'',naissance:'',adresse:'',cp:'',ville:'',tel:'',niveau:'',profession:'',nationalite:'',oeilD:'',oeilG:'',correction:null,incompat:'',visite:null,
   boite:'manuelle',permis:null,permisDate:'',conduite:null,avecQui:null,ou:null,sinon:[],
   veh:{},att1:null,att2:null,fsb:{},regard:null,
-  theorie:'',pratique:null,acceptee:null,retTheo:'',retPrat:'',
+  theorie:'',pratique:null,acceptee:null,retTheo:'',retPrat:'',hExam:defExam(),
   formateur:p.formateur||'',autorisation:p.autorisation||'',sig:{formateur:null,eleve:null,parents:null}}}
 function normalize(o){const b=blank();const r=Object.assign(b,o||{});['veh','fsb'].forEach(k=>r[k]=r[k]||{});r.sinon=Array.isArray(r.sinon)?r.sinon:[];['permis','avecQui','ou'].forEach(k=>{if(Array.isArray(r[k]))r[k]=r[k].length?r[k][r[k].length-1]:null});
-  r.sig=Object.assign({formateur:null,eleve:null,parents:null},r.sig||{});{const q=pro();if(!r.formateur&&q.formateur)r.formateur=q.formateur;if(!r.autorisation&&q.autorisation)r.autorisation=q.autorisation}return r}
+  if(o&&!('hExam' in o))r.hExam=0;r.sig=Object.assign({formateur:null,eleve:null,parents:null},r.sig||{});{const q=pro();if(!r.formateur&&q.formateur)r.formateur=q.formateur;if(!r.autorisation&&q.autorisation)r.autorisation=q.autorisation}return r}
 
 let S;try{S=JSON.parse(lsGet(LS_DRAFT))}catch(e){S=null}
 S=(S&&S.v===2)?normalize(S):blank();
@@ -850,12 +859,17 @@ function renderForm(){
     <div class="prat"><div class="lbl">Pratique proposée</div>
       <div class="hours"><button type="button" class="step" id="minus" aria-label="Retirer une heure">−</button>
       <div class="num" id="num">–</div><button type="button" class="step" id="plus" aria-label="Ajouter une heure">+</button></div>
-      <div class="meta" id="meta"></div><button type="button" class="reset" id="reset" hidden>Revenir au calcul automatique</button></div>
+      <div class="meta" id="meta"></div><button type="button" class="reset" id="reset" hidden>Revenir au calcul automatique</button>
+      <div class="exh"><div class="exl"><b>+ Passage de l’examen</b><small>Non compris dans les packs Ornikar</small></div>
+        <div class="exs"><button type="button" class="step sm" id="exMinus" aria-label="Retirer une heure d’examen">−</button><b id="exNum">2 h</b><button type="button" class="step sm" id="exPlus" aria-label="Ajouter une heure d’examen">+</button></div></div>
+      <div class="extot" id="exTot"></div></div>
   </div></div>
 
   <section class="block" id="sec-10"><h2><span class="n">10</span>Proposition : volume de formation prévisionnel</h2><div class="grid">
     ${inp('theorie','Théorie (heures)','number','','inputmode="numeric" min="0"')}
     <label class="f">Pratique (heures)<input type="text" id="pratMirror" readonly></label>
+    <label class="f">Passage de l’examen pratique<input type="text" id="exMirror" readonly></label>
+    <p class="full exnote" id="exNote"></p>
     <div class="full"><div class="lab">Proposition acceptée</div>${single('acceptee',['Oui','Non'])}</div>
     <div class="full" data-retenue ${S.acceptee==='Non'?'':'hidden'}><div class="grid">
       ${inp('retTheo','Retenue : théorie (h)','number','','inputmode="numeric" min="0"')}${inp('retPrat','Retenue : pratique (h)','number','','inputmode="numeric" min="25"')}</div></div>
@@ -909,6 +923,10 @@ function updateDerived(){
     (c.ans?(c.theo?`<br>Théorie conseillée : environ ${c.theo} h`:'<br>Théorie : selon les aptitudes de l’élève'):'');
   $('#minus').disabled=h==null||h<=c.min;$('#plus').disabled=h==null;$('#reset').hidden=S.pratique==null;
   $('#pratMirror').value=h==null?'':h+' h';
+  const x=hEx(),hr=retenue(c).p||h;$('#exNum').textContent=x+' h';$('#exMinus').disabled=x<=0;$('#exPlus').disabled=x>=4;
+  $('#exTot').innerHTML=h==null?'':x?`Total à prévoir : <b>${(+hr||0)+x} h</b> (${hr} h de formation + ${x} h pour l’examen)`:'Aucune heure ajoutée pour l’examen';
+  $('#exMirror').value=x?`+ ${x} h`:'Aucune';
+  $('#exNote').textContent=h==null||!x?'':`Total à prévoir : ${(+hr||0)+x} h. Les ${x} h en plus sont réservées au passage de l’examen pratique : elles ne sont pas comprises dans les packs Ornikar.`;
 }
 
 /* ---------- règles de la rubrique 2 ---------- */
@@ -959,6 +977,8 @@ $('#viewForm').addEventListener('click',e=>{
   switch(b.id){
     case 'minus':S.pratique=Math.max(c.min,pratique(c)-1);touch();updateDerived();break;
     case 'plus':S.pratique=Math.min(99,pratique(c)+1);touch();updateDerived();break;
+    case 'exMinus':S.hExam=Math.max(0,hEx()-1);lsSet('rc:hExam',String(S.hExam));touch();updateDerived();break;
+    case 'exPlus':S.hExam=Math.min(4,hEx()+1);lsSet('rc:hExam',String(S.hExam));touch();updateDerived();break;
     case 'reset':S.pratique=null;touch();updateDerived();break;
     case 'save':saveCurrent();break;
     case 'export':exportFiche();break;
@@ -1005,7 +1025,7 @@ async function unpersist(id){if(db&&uid)await col().doc(id).delete();else await 
 function isSaved(){const h=history.find(x=>x.id===S.id);return h&&h.updatedAt===S.updatedAt}
 async function saveCurrent(){
   if(!S.prenom&&!S.nom){toast('Ajoutez au moins le nom de l’élève');document.querySelector('[data-in="nom"]').focus();return}
-  const c=compute(),r=retenue(c);S.result={pos:c.pos,neg:c.neg,res:c.res,pratique:pratique(c),retTheo:r.t,retPrat:r.p};
+  const c=compute(),r=retenue(c);S.result={pos:c.pos,neg:c.neg,res:c.res,pratique:pratique(c),retTheo:r.t,retPrat:r.p,examen:hEx()};
   S.eleveId=RC.link(S);S.updatedAt=Date.now();lsSet(LS_DRAFT,JSON.stringify(S));
   try{await persist(S);toast('Évaluation enregistrée dans le dossier de '+RC.full(S));RC.check();renderForm();RC.dpRemind(S.eleveId,refreshDp)}
   catch(e){toast(e&&e.code==='quota_exceeded'?'Stockage plein : supprimez d’anciennes évaluations':'Enregistrement impossible, réessayez')}
@@ -1051,7 +1071,7 @@ function summary(){const c=compute(),h=pratique(c),r=retenue(c);
 Élève : ${nomComplet()}
 Résultat : ${c.pos} positifs, ${c.neg} négatifs, résultat final ${c.res>0?'+':''}${c.res} (${c.cat})
 Proposition : ${S.theorie?S.theorie+' h de théorie, ':''}${h!=null?h+' h de pratique':'pratique non définie'}
-Proposition acceptée : ${S.acceptee||'non renseigné'}${S.acceptee==='Non'&&(r.t||r.p)?`\nProposition retenue : ${r.t||0} h de théorie, ${r.p||0} h de pratique`:''}${S.formateur?'\nFormateur : '+S.formateur:''}`}
+${hEx()?`Passage de l’examen pratique : + ${hEx()} h (non comprises dans les packs Ornikar)\n`:''}Proposition acceptée : ${S.acceptee||'non renseigné'}${S.acceptee==='Non'&&(r.t||r.p)?`\nProposition retenue : ${r.t||0} h de théorie, ${r.p||0} h de pratique`:''}${S.formateur?'\nFormateur : '+S.formateur:''}`}
 function ornikarText(tu){const T=RC.T,c=compute(),f=S.fsb,p=S.prenom,V=(v,t)=>T(tu,t,v);
   const B=k=>f[k]==='B',weak=k=>f[k]==='F'||f[k]==='S';
   const forts=[];
@@ -1094,7 +1114,7 @@ function ornikarText(tu){const T=RC.T,c=compute(),f=S.fsb,p=S.prenom,V=(v,t)=>T(
     ...(pf.length>2?[V('Vos points forts :','Tes points forts :'),...pf.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;'))]:pf.length?[`${V('Vos points forts','Tes points forts')} : ${pf.join(' et ')}.`]:[]),
     tv.length?'':null,tv.length?V('Ce que nous allons travailler ensemble :','Ce qu’on va travailler ensemble :'):null,
     ...tv.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;')),'',
-    h?`Le volume prévu est de ${h} heures de conduite${(r.t||S.theorie)?` et ${r.t||S.theorie} heures de théorie`:''}. ${code}`:code,
+    h?`Le volume prévu est de ${h} heures de conduite${(r.t||S.theorie)?` et ${r.t||S.theorie} heures de théorie`:''}${hEx()?`, plus ${hEx()} heure${hEx()>1?'s':''} pour le passage de l’examen pratique`:''}. ${code}`:code,
     '','À très vite pour la suite !','Fabien','Rousseau Conduite'].filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}
 function shareOrnikar(){RC.openShare({title:'Commentaire pour Ornikar',templates:[{id:'ornikar',label:'Commentaire Ornikar',build:tu=>ornikarText(tu)}]})}
 function shareBilan(){const T=RC.T;
@@ -1105,6 +1125,7 @@ function shareBilan(){const T=RC.T;
       c.ans?`Résultat : ${c.cat} (${c.res>0?'+':''}${c.res}).`:null,
       h!=null?`Je ${T(tu,'te','vous')} propose une formation de ${h} h de conduite${S.theorie?` et ${S.theorie} h de théorie`:''}.`:null,
       S.acceptee==='Non'&&(r.t||r.p)?`Nous avons retenu ensemble ${r.p||h} h de conduite${r.t?` et ${r.t} h de théorie`:''}.`:null,
+      h!=null&&hEx()?`À cela s’ajoute${hEx()>1?'nt':''} ${hEx()} h pour le passage de l’examen pratique, soit ${(+(r.p||h)||0)+hEx()} h au total. ${T(tu,'Ces heures ne sont pas comprises dans ton pack Ornikar : je préfère te le dire dès maintenant.','Ces heures ne sont pas comprises dans votre pack Ornikar : je préfère vous le dire dès maintenant.')}`:null,
       `Ce volume est une estimation : il pourra évoluer selon ${T(tu,'ta','votre')} progression.`,
       '','À très vite sur la route !','Fabien','Rousseau Conduite'].filter(x=>x!==null).join('\n')}}]})}
 async function copySummary(){const t=summary();
@@ -1156,7 +1177,7 @@ ${fsbTable(FSB.hab)}${fsbTable(FSB.comp)}
 ${fsbTable(FSB.perc,`<tr><td>Regard</td><td colspan="3">${['B','F1','F2','F3'].map(x=>`${ck(S.regard===x)} ${x}`).join('&nbsp; ')}</td></tr>`)}${fsbTable(FSB.emo)}</div>
 <div class="sec"><h3>9. Résultat de l’évaluation</h3><div class="res">Positifs <span class="bx">${c.pos}</span> − Négatifs <span class="bx">${c.neg}</span> = Résultat final <span class="bx">${c.res>0?'+':''}${c.res}</span> <span>(résultat ${c.cat})</span></div></div>
 <div class="sec"><h3>10. Proposition : volume de formation prévisionnel</h3><div class="two">
-<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b>
+<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b>${hEx()&&h!=null?`<br>Passage de l’examen pratique : <b>+ ${hEx()} h</b><br>Total à prévoir : <b>${(+(r.p||h)||0)+hEx()} h</b><br><span style="font-size:.85em">Les heures d’examen ne sont pas comprises dans les packs Ornikar.</span>`:''}
 Formateur : <b>${esc(S.formateur)}</b><br>N° d’autorisation : <b>${esc(S.autorisation)}</b></div>
 <div>Date : <b>${esc(frDate(S.date))}</b><br>Proposition acceptée : ${ck(S.acceptee==='Oui')} Oui &nbsp; ${ck(S.acceptee==='Non')} Non<br>
 Proposition retenue : théorie <b>${r.t?esc(r.t)+' h':'–'}</b>, pratique <b>${r.p!=null&&r.p!==''?esc(r.p)+' h':'–'}</b></div></div>
