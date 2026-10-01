@@ -870,7 +870,7 @@ function renderDossier(id){
     <button type="button" class="btn sec" id="msgBtn">Envoyer un message</button><button type="button" class="btn sec" id="memoBtn">Partager un document</button></div>
 
   <div class="tiles">
-    <div class="tile"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&le&&+le.hExam?`<small class="tx">+ ${+le.hExam} h pour l’examen</small>`:''}</div>
+    <div class="tile"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&le&&+le.hExam?`<small class="tx">+ ${+le.hExam} h pour l’examen${+le.hExam>=2?' (trajet)':''}</small>`:''}</div>
     ${(()=>{const H=RC.heures(e.id),ag=H.lecons.length>0||H.adj!==0;
       return `<button type="button" class="tile tbtn" id="hBtn"><span>Heures effectuées</span><b>${ag?fmtH(H.total):lastH!=null?esc(String(lastH).replace('.',','))+' h':'–'}</b><small>${ag?`${H.n} leçon${H.n>1?'s':''} · détail`:'Voir le détail'}</small></button>`})()}
     <div class="tile"><span>Examens blancs réussis</span><b>${d.ex.length?`${ok} sur ${d.ex.length}`:'–'}</b></div>
