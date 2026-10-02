@@ -360,6 +360,13 @@ label.f small{font-weight:400;font-size:.78rem;color:var(--muted)}
 #mois{overflow:hidden}.hwrap{overflow-x:auto}
 .mleg{display:flex;gap:16px;flex-wrap:wrap;font-size:.86rem}.mleg span{display:flex;align-items:center;gap:6px}.mleg i{width:12px;height:12px;border-radius:3px}.mleg i.d{background:var(--c-real)}.mleg i.p{background:var(--c-contr)}
 .acre{display:flex;flex-direction:column;gap:2px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--chip);border-left:4px solid var(--teal);font-size:.92rem}
+.fold>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px;flex-wrap:wrap;border-radius:10px}
+.fold>summary::-webkit-details-marker{display:none}.fold>summary h2{margin:0}
+.fold .fsum{margin-left:auto;text-align:right;display:flex;flex-direction:column;line-height:1.2}.fold .fsum b{font-family:var(--display);font-size:1.15rem}.fold .fsum small{color:var(--muted);font-size:.78rem}
+.fold .chev{flex:none;width:36px;height:36px;border-radius:50%;background:var(--chip);display:grid;place-items:center}
+.fold .chev::before{content:"";width:9px;height:9px;border-right:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.fold[open] .chev::before{transform:translateY(2px) rotate(-135deg)}.fold[open]>summary{margin-bottom:12px}
+@media (prefers-reduced-motion:reduce){.fold .chev::before{transition:none}}
 .nw{white-space:nowrap;font-style:normal}
 .acre.soon{border-left-color:#C0333A}.acre:empty{display:none}
 #res .ra{margin-top:10px;background:rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:.92rem}
@@ -915,10 +922,10 @@ function render(){
     <section class="block"><h2 class="pill">Mes vacances</h2><div class="grid">
       ${inp('vac','Semaines de vacances par an','sem.','Semaines sans leçon. Vos frais fixes, eux, continuent de tomber.')}</div>
       <div class="acre on" id="vacMsg" aria-live="polite"></div></section>
-    <section class="block"><h2 class="pill">Mes frais fixes par mois</h2>
+    <details class="block fold" id="fxD"><summary><h2 class="pill">Mes frais fixes par mois</h2><span class="fsum"><span><b id="totF2"></b> hors TVA</span><small id="nbF"></small></span><span class="chev" aria-hidden="true"></span></summary>
       <p class="lead2">Ils tombent chaque mois, même sans leçon. Touchez HT / TTC : en TTC, la TVA de 20 % est retirée, puisque vous la récupérez. Laissez « HT » pour les frais sans TVA (assurances, CFE).</p>
       <div id="fixes">${fixesHTML()}</div>
-      <div class="frt"><button type="button" class="btn small" id="addF">+ Ajouter un frais</button><span>Total : <b id="totF"></b> hors TVA</span></div></section>
+      <div class="frt"><button type="button" class="btn small" id="addF">+ Ajouter un frais</button><span>Total : <b id="totF"></b> hors TVA</span></div></details>
     <section class="block"><h2 class="pill">Carburant</h2><div class="grid">
       ${inp('carbSem','Carburant par semaine (TTC)','€','Ce que vous mettez à la pompe sur une semaine normale')}
       ${inp('carbHs','Heures de leçon cette semaine-là','h','Le carburant suit ainsi votre rythme : moins de leçons, moins de carburant')}
@@ -962,7 +969,7 @@ function acreInfo(c){const f=B.acreFin;if(!f||!/^\d{4}-\d\d-\d\d$/.test(f))retur
   const reste=j<60?(j===0?'dernier jour':`encore ${j} jour${j>1?'s':''}`):`encore environ ${Math.round(j/30.44)} mois`;
   return{html:`<b>ACRE jusqu’au ${jour(fin)} (${reste}).</b><span>Taux appliqué aujourd’hui : ${pct(c.cotis)}. Il passera tout seul au taux normal le ${jour(apres)}.</span>`,cls:j<60?'soon':'on',apres}}
 function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{acre:false}):null,ai=acreInfo(c);
-  $('#totF').textContent=eur(c.F);$('#carbH').textContent=eur2(c.v);
+  $('#totF').textContent=eur(c.F);$('#totF2').textContent=eur(c.F);{const n=B.fixes.filter(l=>parseFloat(String(l.m).replace(',','.'))>0).length;$('#nbF').textContent=n+' frais renseigné'+(n>1?'s':'')}$('#carbH').textContent=eur2(c.v);
   $('#acreMsg').innerHTML=ai.html;$('#acreMsg').className='acre '+ai.cls;
   const mode=B.areMode==='compl'?'compl':'cumul';document.querySelectorAll('[data-arem]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.arem===mode));$('#areAbW').hidden=mode==='compl';
   $('#areMsg').innerHTML=!c.are?'<b>Aucune allocation renseignée.</b>':`<b>${mode==='compl'?'France Travail complète votre chiffre d’affaires jusqu’à '+eur(c.are)+'.':'France Travail retire de votre allocation 70 % de votre chiffre d’affaires après abattement.'}</b><span>${mode==='compl'?'Sans leçon':'Sans leçon, vous touchez '+eur(c.are)+'. L’aide baisse quand votre chiffre d’affaires monte'}${c.areFinCA!=null?(mode==='compl'?', vous touchez '+eur(c.are)+'. L’aide':' et')+` s’arrête à partir de <b>${eur(c.areFinCA)}</b> de chiffre d’affaires hors TVA par mois${c.areFinH!=null?`, soit ${hh(c.areFinH)} par mois (${hh(c.areFinH/WK)} par semaine)`:''}.`:'.'}</span>`;
