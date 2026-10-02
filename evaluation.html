@@ -125,9 +125,11 @@ details.help li b{display:inline-block;min-width:1.8rem;color:var(--ink)}
 .exh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.25)}
 .exl{display:flex;flex-direction:column;text-align:left}.exl b{font-size:1.05rem}.exl small{opacity:.95;font-size:.88rem;font-weight:700}
 .exs{display:flex;align-items:center;gap:8px}.exs b{min-width:2.6rem;text-align:center;font-family:var(--display);font-size:1.15rem}
-.exc{display:flex;flex-direction:column;align-items:center;min-width:5.6rem;padding:6px 10px;border-radius:12px;border:2px solid rgba(255,255,255,.6);background:transparent;color:#fff;font-weight:800;font-size:1.05rem;cursor:pointer;line-height:1.1}
-.exc small{font-weight:600;font-size:.7rem;opacity:.9}
+.exc{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1 1 0;min-width:0;gap:3px;padding:6px 10px;border-radius:12px;border:2px solid rgba(255,255,255,.6);background:transparent;color:#fff;font-weight:800;font-size:1.05rem;cursor:pointer;line-height:1.1}
+.exc small{font-weight:600;font-size:.74rem;opacity:.95;line-height:1.2}
+.exs{width:100%;align-items:stretch}.extot span{font-weight:400;font-size:.92rem}
 .exc[aria-pressed="true"]{background:#fff;color:var(--navy);border-color:#fff}
+.fch{margin:2px 0 6px;font-size:1.05rem;background:rgba(255,255,255,.14);border-radius:10px;padding:6px 10px;display:inline-block}.fch:empty{display:none}
 .extot{margin-top:10px;font-size:1rem;font-weight:700}
 .exnote{margin:0;font-size:1rem;font-weight:700;color:var(--ink);background:var(--chip);border-left:5px solid var(--navy);border-radius:10px;padding:12px 14px;line-height:1.4}.exnote:empty{display:none}
 .fine{font-size:.8rem;color:var(--muted);margin:6px 0 0;font-style:italic}
@@ -762,9 +764,12 @@ const setP=(o,p,v)=>{const ks=p.split('.');let a=o;ks.slice(0,-1).forEach(k=>{a[
 
 function pro(){let p={};try{p=JSON.parse(lsGet(LS_PRO))||{}}catch(e){}return{formateur:p.formateur||'Fabien',autorisation:p.autorisation||'A1800300020'}}
 /* heures pour le passage de l’examen pratique : non comprises dans les packs Ornikar, ajoutées en plus du volume calculé */
+/* fourchette d’heures affichée comme dans l’application Ornikar : 25-29, 30-34, 35-39… */
+const fourch=h=>{h=+h;if(!h||isNaN(h))return null;const lo=Math.max(25,Math.floor(h/5)*5);return[lo,lo+4]};
+const fTxt=h=>{const f=fourch(h);return f?`${f[0]} à ${f[1]} h`:''};
 const defExam=()=>1;
 /* 1 h pour l’examen ; 2 h si l’élève souhaite que Fabien l’amène au centre d’examen */
-const exTxt=(tu,x)=>x>=2?(tu?' (je t’amène au centre d’examen)':' (je vous amène au centre d’examen)'):(tu?' (2 h si tu souhaites que je t’amène au centre d’examen)':' (2 h si vous souhaitez que je vous amène au centre d’examen)');
+const exTxt=(tu,x)=>x>=2?' (accompagnement jusqu’au centre d’examen compris)':' (2 heures avec accompagnement jusqu’au centre d’examen)';
 const hEx=()=>+S.hExam||0;
 function blank(){const p=pro();return{v:2,id:newId(),createdAt:Date.now(),updatedAt:Date.now(),date:todayISO(),
   nom:'',prenom:'',naissance:'',adresse:'',cp:'',ville:'',tel:'',niveau:'',profession:'',nationalite:'',oeilD:'',oeilG:'',correction:null,incompat:'',visite:null,
@@ -863,9 +868,10 @@ function renderForm(){
     <div class="prat"><div class="lbl">Pratique proposée</div>
       <div class="hours"><button type="button" class="step" id="minus" aria-label="Retirer une heure">−</button>
       <div class="num" id="num">–</div><button type="button" class="step" id="plus" aria-label="Ajouter une heure">+</button></div>
+      <div class="fch" id="fch"></div>
       <div class="meta" id="meta"></div><button type="button" class="reset" id="reset" hidden>Revenir au calcul automatique</button>
-      <div class="exh"><div class="exl"><b>+ Passage de l’examen</b><small>Non compris dans les packs Ornikar</small></div>
-        <div class="exs" role="group" aria-label="Heures pour l’examen"><button type="button" class="exc" id="exOne">1 h<small>examen seul</small></button><button type="button" class="exc" id="exTwo">2 h<small>je l’amène au centre</small></button></div></div>
+      <div class="exh"><div class="exl"><b>Examen pratique</b><small>Heures à prévoir en plus, non comprises dans les packs Ornikar</small></div>
+        <div class="exs" role="group" aria-label="Heures pour l’examen pratique"><button type="button" class="exc" id="exOne">1 heure<small>Passage de l’examen</small></button><button type="button" class="exc" id="exTwo">2 heures<small>Examen et accompagnement<br>jusqu’au centre d’examen</small></button></div></div>
       <div class="extot" id="exTot"></div></div>
   </div></div>
 
@@ -920,17 +926,18 @@ function updateDerived(){
   $('#rCat').textContent=c.ans?`Résultat ${c.cat}`+(c.ans<c.tot?' (provisoire)':''):'';
   $('#meter').style.width=Math.round(c.ans/c.tot*100)+'%';
   $('#num').innerHTML=h==null?'–':`${h}<small>h</small>`;
+  $('#fch').innerHTML=h==null?'':`Fourchette Ornikar : <b>${fTxt(retenue(c).p||h)}</b>`;
   const left=c.tot-c.ans;
   $('#meta').innerHTML=c.ans===0?'Remplissez la fiche pour obtenir une proposition':
     (left?`Provisoire : ${left} critère${left>1?'s':''} à renseigner`:'Tous les critères sont renseignés')+
     (S.pratique!=null&&c.est!=null&&S.pratique!==c.est?`<br>Calcul automatique : ${c.est} h`:'')+
     (c.ans?(c.theo?`<br>Théorie conseillée : environ ${c.theo} h`:'<br>Théorie : selon les aptitudes de l’élève'):'');
   $('#minus').disabled=h==null||h<=c.min;$('#plus').disabled=h==null;$('#reset').hidden=S.pratique==null;
-  $('#pratMirror').value=h==null?'':h+' h';
+  $('#pratMirror').value=h==null?'':`${h} h (fourchette ${fTxt(h)})`;
   const x=hEx(),hr=retenue(c).p||h;$('#exOne').setAttribute('aria-pressed',x===1);$('#exTwo').setAttribute('aria-pressed',x>=2);
-  $('#exTot').innerHTML=h==null?'':x?`Total à prévoir : <b>${(+hr||0)+x} h</b> (${hr} h de formation + ${x} h pour l’examen)`:'Choisissez 1 h ou 2 h pour l’examen';
-  $('#exMirror').value=x>=2?'+ 2 h (amené au centre d’examen)':x?'+ 1 h':'Non renseigné';
-  $('#exNote').textContent=h==null||!x?'':`Total à prévoir : ${(+hr||0)+x} h. ${x>=2?'Les 2 h en plus couvrent le passage de l’examen pratique et le trajet jusqu’au centre d’examen : elles ne sont pas comprises':'L’heure en plus est réservée au passage de l’examen pratique (2 h si l’élève souhaite être amené au centre d’examen) : elle n’est pas comprise'} dans les packs Ornikar.`;
+  $('#exTot').innerHTML=h==null?'':x?`Total à prévoir : <b>${(+hr||0)+x} heures</b><br><span>${hr} h de formation et ${x} h pour l’examen pratique</span>`:'Sélectionnez 1 heure ou 2 heures pour l’examen pratique';
+  $('#exMirror').value=x>=2?'2 heures (accompagnement compris)':x?'1 heure':'Non renseigné';
+  $('#exNote').textContent=h==null||!x?'':`Total à prévoir : ${(+hr||0)+x} heures, soit ${hr} h de formation et ${x} h pour l’examen pratique${x>=2?', accompagnement jusqu’au centre d’examen compris':' (2 heures avec accompagnement jusqu’au centre d’examen)'}. ${x>1?'Ces heures ne sont pas comprises':'Cette heure n’est pas comprise'} dans les packs Ornikar.`;
 }
 
 /* ---------- règles de la rubrique 2 ---------- */
@@ -1029,7 +1036,7 @@ async function unpersist(id){if(db&&uid)await col().doc(id).delete();else await 
 function isSaved(){const h=history.find(x=>x.id===S.id);return h&&h.updatedAt===S.updatedAt}
 async function saveCurrent(){
   if(!S.prenom&&!S.nom){toast('Ajoutez au moins le nom de l’élève');document.querySelector('[data-in="nom"]').focus();return}
-  const c=compute(),r=retenue(c);S.result={pos:c.pos,neg:c.neg,res:c.res,pratique:pratique(c),retTheo:r.t,retPrat:r.p,examen:hEx()};
+  const c=compute(),r=retenue(c);S.result={pos:c.pos,neg:c.neg,res:c.res,pratique:pratique(c),retTheo:r.t,retPrat:r.p,examen:hEx(),fourchette:fourch(r.p||pratique(c))};
   S.eleveId=RC.link(S);S.updatedAt=Date.now();lsSet(LS_DRAFT,JSON.stringify(S));
   try{await persist(S);toast('Évaluation enregistrée dans le dossier de '+RC.full(S));RC.check();renderForm();RC.dpRemind(S.eleveId,refreshDp)}
   catch(e){toast(e&&e.code==='quota_exceeded'?'Stockage plein : supprimez d’anciennes évaluations':'Enregistrement impossible, réessayez')}
@@ -1074,8 +1081,8 @@ function summary(){const c=compute(),h=pratique(c),r=retenue(c);
   return `Rousseau Conduite, évaluation de départ du ${frDate(S.date)}
 Élève : ${nomComplet()}
 Résultat : ${c.pos} positifs, ${c.neg} négatifs, résultat final ${c.res>0?'+':''}${c.res} (${c.cat})
-Proposition : ${S.theorie?S.theorie+' h de théorie, ':''}${h!=null?h+' h de pratique':'pratique non définie'}
-${hEx()?`Passage de l’examen pratique : + ${hEx()} h${hEx()>=2?' (amené au centre d’examen)':' (2 h si l’élève souhaite être amené au centre d’examen)'}, non compris dans les packs Ornikar\n`:''}Proposition acceptée : ${S.acceptee||'non renseigné'}${S.acceptee==='Non'&&(r.t||r.p)?`\nProposition retenue : ${r.t||0} h de théorie, ${r.p||0} h de pratique`:''}${S.formateur?'\nFormateur : '+S.formateur:''}`}
+Proposition : ${S.theorie?S.theorie+' h de théorie, ':''}${h!=null?h+' h de pratique (fourchette Ornikar : '+fTxt(h)+')':'pratique non définie'}
+${hEx()?`Examen pratique : ${hEx()} heure${hEx()>1?'s':''} en plus${exTxt(false,hEx())}, non comprise${hEx()>1?'s':''} dans les packs Ornikar\n`:''}Proposition acceptée : ${S.acceptee||'non renseigné'}${S.acceptee==='Non'&&(r.t||r.p)?`\nProposition retenue : ${r.t||0} h de théorie, ${r.p||0} h de pratique`:''}${S.formateur?'\nFormateur : '+S.formateur:''}`}
 function ornikarText(tu){const T=RC.T,c=compute(),f=S.fsb,p=S.prenom,V=(v,t)=>T(tu,t,v);
   const B=k=>f[k]==='B',weak=k=>f[k]==='F'||f[k]==='S';
   const forts=[];
@@ -1118,7 +1125,7 @@ function ornikarText(tu){const T=RC.T,c=compute(),f=S.fsb,p=S.prenom,V=(v,t)=>T(
     ...(pf.length>2?[V('Vos points forts :','Tes points forts :'),...pf.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;'))]:pf.length?[`${V('Vos points forts','Tes points forts')} : ${pf.join(' et ')}.`]:[]),
     tv.length?'':null,tv.length?V('Ce que nous allons travailler ensemble :','Ce qu’on va travailler ensemble :'):null,
     ...tv.map((t,i,a)=>'- '+t+(i===a.length-1?'.':' ;')),'',
-    h?`Le volume prévu est de ${h} heures de conduite${(r.t||S.theorie)?` et ${r.t||S.theorie} heures de théorie`:''}${hEx()?`, plus ${hEx()} heure${hEx()>1?'s':''} pour le passage de l’examen pratique${exTxt(tu,hEx())}`:''}. ${code}`:code,
+    h?`Le volume prévu est de ${h} heures de conduite (fourchette de ${fTxt(h)})${(r.t||S.theorie)?` et ${r.t||S.theorie} heures de théorie`:''}${hEx()?`, auxquelles s’ajoute${hEx()>1?'nt':''} ${hEx()} heure${hEx()>1?'s':''} pour le passage de l’examen pratique${exTxt(tu,hEx())}`:''}. ${code}`:code,
     '','À très vite pour la suite !','Fabien','Rousseau Conduite'].filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n')}
 function shareOrnikar(){RC.openShare({title:'Commentaire pour Ornikar',templates:[{id:'ornikar',label:'Commentaire Ornikar',build:tu=>ornikarText(tu)}]})}
 function shareBilan(){const T=RC.T;
@@ -1127,10 +1134,10 @@ function shareBilan(){const T=RC.T;
     return [`Bonjour${p?' '+p:''},`,'',
       `Merci pour ${T(tu,'ton','votre')} évaluation de départ du ${frDate(S.date)}.`,
       c.ans?`Résultat : ${c.cat} (${c.res>0?'+':''}${c.res}).`:null,
-      h!=null?`Je ${T(tu,'te','vous')} propose une formation de ${h} h de conduite${S.theorie?` et ${S.theorie} h de théorie`:''}.`:null,
+      h!=null?`Je ${T(tu,'te','vous')} propose une formation de ${h} h de conduite${S.theorie?` et ${S.theorie} h de théorie`:''}. Dans ${T(tu,'ton','votre')} application Ornikar, cela correspond à la fourchette de ${fTxt(S.acceptee==='Non'&&r.p?r.p:h)}.`:null,
       S.acceptee==='Non'&&(r.t||r.p)?`Nous avons retenu ensemble ${r.p||h} h de conduite${r.t?` et ${r.t} h de théorie`:''}.`:null,
       h!=null&&hEx()?'':null,
-      h!=null&&hEx()?`À cela s’ajoute${hEx()>1?'nt':''} ${hEx()} h pour le passage de l’examen pratique${exTxt(tu,hEx())}, soit ${(+(r.p||h)||0)+hEx()} h au total. ${T(tu,(hEx()>1?'Ces heures ne sont pas comprises':'Cette heure n’est pas comprise')+' dans ton pack Ornikar : je préfère te le dire dès maintenant.',(hEx()>1?'Ces heures ne sont pas comprises':'Cette heure n’est pas comprise')+' dans votre pack Ornikar : je préfère vous le dire dès maintenant.')}`:null,
+      h!=null&&hEx()?`À ce volume s’ajoute${hEx()>1?'nt':''} ${hEx()} heure${hEx()>1?'s':''} pour le passage de l’examen pratique${exTxt(tu,hEx())}. Le total à prévoir est donc de ${(+(r.p||h)||0)+hEx()} heures. ${hEx()>1?'Ces heures ne sont pas comprises':'Cette heure n’est pas comprise'} dans ${T(tu,'ton','votre')} pack Ornikar.`:null,
       h!=null&&hEx()?'':null,
       `Ce volume est une estimation : il pourra évoluer selon ${T(tu,'ta','votre')} progression.`,
       '','À très vite sur la route !','Fabien','Rousseau Conduite'].filter(x=>x!==null).join('\n')}}]})}
@@ -1184,10 +1191,10 @@ ${fsbTable(FSB.hab)}${fsbTable(FSB.comp)}
 ${fsbTable(FSB.perc,`<tr><td>Regard</td><td colspan="3">${['B','F1','F2','F3'].map(x=>`${ck(S.regard===x)} ${x}`).join('&nbsp; ')}</td></tr>`)}${fsbTable(FSB.emo)}</div>
 <div class="sec"><h3>9. Résultat de l’évaluation</h3><div class="res">Positifs <span class="bx">${c.pos}</span> − Négatifs <span class="bx">${c.neg}</span> = Résultat final <span class="bx">${c.res>0?'+':''}${c.res}</span> <span>(résultat ${c.cat})</span></div></div>
 <div class="sec"><h3>10. Proposition : volume de formation prévisionnel</h3><div class="two">
-<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b><br>Formateur : <b>${esc(S.formateur)}</b><br>N° d’autorisation : <b>${esc(S.autorisation)}</b></div>
+<div>Théorie : <b>${S.theorie?esc(S.theorie)+' h':'–'}</b><br>Pratique : <b>${h!=null?h+' h':'–'}</b>${h!=null?` (fourchette Ornikar : <b>${fTxt(r.p||h)}</b>)`:''}<br>Formateur : <b>${esc(S.formateur)}</b><br>N° d’autorisation : <b>${esc(S.autorisation)}</b></div>
 <div>Date : <b>${esc(frDate(S.date))}</b><br>Proposition acceptée : ${ck(S.acceptee==='Oui')} Oui &nbsp; ${ck(S.acceptee==='Non')} Non<br>
 Proposition retenue : théorie <b>${r.t?esc(r.t)+' h':'–'}</b>, pratique <b>${r.p!=null&&r.p!==''?esc(r.p)+' h':'–'}</b></div></div>
-${hEx()&&h!=null?`<div class="exbox"><b>Heures pour l’examen pratique, en plus de la formation</b><br>${hEx()>=2?'+ 2 h pour le passage de l’examen pratique, avec le trajet jusqu’au centre d’examen.':'+ 1 h pour le passage de l’examen pratique <b>(2 h si l’élève souhaite que je l’amène au centre d’examen)</b>.'}<br><b>Total à prévoir : ${(+(r.p||h)||0)+hEx()} h</b> (${r.p||h} h de formation + ${hEx()} h pour l’examen). ${hEx()>1?'Ces heures ne sont pas comprises':'Cette heure n’est pas comprise'} dans les packs Ornikar.</div>`:''}
+${hEx()&&h!=null?`<div class="exbox"><b>Examen pratique : heures à prévoir en plus de la formation</b><br>${hEx()>=2?'Passage de l’examen pratique : <b>2 heures</b>, accompagnement jusqu’au centre d’examen compris.':'Passage de l’examen pratique : <b>1 heure</b> (2 heures avec accompagnement jusqu’au centre d’examen).'}<br><b>Total à prévoir : ${(+(r.p||h)||0)+hEx()} heures</b>, soit ${r.p||h} h de formation et ${hEx()} h pour l’examen pratique. ${hEx()>1?'Ces heures ne sont pas comprises':'Cette heure n’est pas comprise'} dans les packs Ornikar.</div>`:''}
 <div class="boxes"><div>Cachet<img src="${LOGO}" alt=""></div><div>Signature formateur${sig('formateur')}</div><div>Signature élève${sig('eleve')}</div></div>
 ${minor()||S.sig.parents?`<div class="boxes"><div></div><div></div><div>Signature parents (pour mineurs)${sig('parents')}</div></div>`:''}
 </div></body></html>`}
