@@ -702,6 +702,7 @@ window.RC=(function(){
     if(o.acreFin===undefined){const a=String(o.cotis).replace('.',',')==='13,1';o.acreFin='2027-03-31';o.cotisAcre=a?o.cotis:'13,1';if(a)o.cotis='24,6'}
     if(o.carbSem===undefined){const ph=num(o.kmh)*num(o.conso)/100*num(o.prixL);o.carbHs='30';o.carbSem=String(Math.round(ph*30))}
     if(o.vac===undefined)o.vac='5';
+    if(o.tauxTTC===undefined){o.tauxTTC=true;const t=num(o.taux);if(t>0)o.taux=String(Math.round(t*120)/100).replace('.',',')}
     if(o.are===undefined){o.are='1100';o.areMode='cumul';o.areAbat='34'}
     return o}
   /* ACRE : taux réduit jusqu'à la date de fin incluse, puis taux normal */
@@ -711,7 +712,7 @@ window.RC=(function(){
   const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return isNaN(n)?0:n};
   /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
   const fraisHT=l=>num(l.m)/(l.tva?1.2:1);
-  function budgetCalc(b,o){const taux=num(b.taux),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
+  function budgetCalc(b,o){const taux=num(b.taux)/(b.tauxTTC?1.2:1),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
     const hsW=num(b.carbHs),carbTTC=hsW>0?num(b.carbSem)/hsW:0,v=carbTTC/(b.carbTva?1.2:1)+num(b.autreH);
     const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(51,Math.max(0,num(b.vac))),WK=(52-vac)/12;
     /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
