@@ -351,7 +351,7 @@ h2.band .ctit{flex:1;min-width:0}
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',hr:'rc:heures',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',hr:'rc:heures',bu:'rc:budget',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -434,7 +434,7 @@ window.RC=(function(){
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
   async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),sg=list(K.sg),hr=list(K.hr),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,heures:hr,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,heures:hr,budget:budget(),pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
@@ -448,6 +448,7 @@ window.RC=(function(){
     try{const d=JSON.parse(await file.text());
       const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId),sg=mergeInto(K.sg,d.signes,x=>x.v===1&&x.eleveId),hr=mergeInto(K.hr,d.heures,x=>x.v===1&&x.eleveId);
       if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
+      if(d.budget&&d.budget.v===1){const cb=budget();if(!cb||(d.budget.updatedAt||0)>(cb.updatedAt||0))set(K.bu,JSON.stringify(d.budget))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
       if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!sg&&!hr&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
@@ -776,6 +777,25 @@ window.RC=(function(){
         if(!list(K.sg).some(x=>x.id===rec.id)){toast('Mémoire pleine : faites une sauvegarde puis réessayez');return}
         el._close();toast('Document signé et enregistré dans le dossier');if(onDone)onDone(rec);sendSigned(rec)}})}
   /* ---------- kilométrage du véhicule (LLD) ---------- */
+  /* ---------- budget : frais réels, seuil de rentabilité ---------- */
+  function budget(){try{const o=JSON.parse(get(K.bu));return o&&o.v===1?o:null}catch(e){return null}}
+  function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
+  const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return isNaN(n)?0:n};
+  /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
+  const fraisHT=l=>num(l.m)/(l.tva?1.2:1);
+  function budgetCalc(b){const taux=num(b.taux),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
+    const carbTTC=num(b.kmh)*num(b.conso)/100*num(b.prixL),v=carbTTC/(b.carbTva?1.2:1)+num(b.autreH);
+    const c=(num(b.cotis)+num(b.fiscal))/100,marge=taux*(1-c)-v,WK=52/12;
+    const need=net=>marge>0?(F+net)/marge:null;
+    const recF=(b.fixes||[]).reduce((a,l)=>a+(l.tva?num(l.m)-num(l.m)/1.2:0),0),recH=b.carbTva?carbTTC-carbTTC/1.2:0;
+    const at=h=>{const ca=h*taux,cot=ca*num(b.cotis)/100,fis=ca*num(b.fiscal)/100,carb=h*v,tvaCol=ca*.2,tvaRec=recF+h*recH;return{h,ca,cot,fis,carb,fixes:F,net:ca-cot-fis-carb-F,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
+    return{taux,F,v,c,marge,WK,seuilH:need(0),objH:need(num(b.objectif)),objectif:num(b.objectif),need,at}}
+  /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
+  function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set();
+    try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
+      const h=Math.max(0,(end-ev.start)/36e5);if(end.getTime()<=t){done+=h;seen.add('h-'+(ev.uid||'')+'-'+ev.start.getTime())}else plan+=h})}catch(e){}
+    list(K.hr).forEach(x=>{const d=new Date(x.start);if(!x.off&&d.getFullYear()===y&&d.getMonth()===m&&!seen.has(x.id))done+=(x.min||0)/60});
+    return{done,plan,key:y+'-'+String(m+1).padStart(2,'0'),daysLeft:new Date(y,m+1,0).getDate()-now.getDate()}}
   function veh(){try{const o=JSON.parse(get(K.ve));return o&&o.contrat?o:null}catch(e){return null}}
   function vehSave(o){o.updatedAt=Date.now();set(K.ve,JSON.stringify(o))}
   const dayOf=s=>{const[y,m,d]=String(s).split('-').map(Number);return Date.UTC(y,m-1,d)/DAY};
@@ -793,7 +813,7 @@ window.RC=(function(){
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();try{syncHeures()}catch(e){}
-  return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
+  return{budget,budgetSave,budgetCalc,monthHours,fraisHT,veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,syncHeures,heures,toggleLecon,jpegPdf,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,downloadDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
