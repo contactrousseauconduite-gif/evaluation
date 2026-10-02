@@ -778,18 +778,32 @@ window.RC=(function(){
         el._close();toast('Document signé et enregistré dans le dossier');if(onDone)onDone(rec);sendSigned(rec)}})}
   /* ---------- kilométrage du véhicule (LLD) ---------- */
   /* ---------- budget : frais réels, seuil de rentabilité ---------- */
-  function budget(){try{const o=JSON.parse(get(K.bu));return o&&o.v===1?o:null}catch(e){return null}}
+  function budget(){try{const o=JSON.parse(get(K.bu));return o&&o.v===1?budgetMig(o):null}catch(e){return null}}
+  /* anciennes fiches budget : un seul taux de cotisations, carburant saisi par heure */
+  function budgetMig(o){
+    if(o.acreFin===undefined){const a=String(o.cotis).replace('.',',')==='13,1';o.acreFin='2027-03-31';o.cotisAcre=a?o.cotis:'13,1';if(a)o.cotis='24,6'}
+    if(o.carbSem===undefined){const ph=num(o.kmh)*num(o.conso)/100*num(o.prixL);o.carbHs='30';o.carbSem=String(Math.round(ph*30))}
+    if(o.vac===undefined)o.vac='5';
+    if(o.are===undefined){o.are='1100';o.areMode='cumul';o.areAbat='34'}
+    return o}
+  /* ACRE : taux réduit jusqu'à la date de fin incluse, puis taux normal */
+  const acreOn=(b,d)=>!!b.acreFin&&iso(d||Date.now())<=b.acreFin;
+  const cotisEff=(b,o)=>num((o&&o.acre!=null?o.acre:acreOn(b))&&b.cotisAcre!=null&&b.cotisAcre!==''?b.cotisAcre:b.cotis);
   function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
   const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return isNaN(n)?0:n};
   /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
   const fraisHT=l=>num(l.m)/(l.tva?1.2:1);
-  function budgetCalc(b){const taux=num(b.taux),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
-    const carbTTC=num(b.kmh)*num(b.conso)/100*num(b.prixL),v=carbTTC/(b.carbTva?1.2:1)+num(b.autreH);
-    const c=(num(b.cotis)+num(b.fiscal))/100,marge=taux*(1-c)-v,WK=52/12;
+  function budgetCalc(b,o){const taux=num(b.taux),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
+    const carbTTC=num(b.carbHs)>0?num(b.carbSem)/num(b.carbHs):0,v=carbTTC/(b.carbTva?1.2:1)+num(b.autreH);
+    const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(51,Math.max(0,num(b.vac))),WK=(52-vac)/12;
     const need=net=>marge>0?(F+net)/marge:null;
+    /* aide France Travail (ARE) : règle de cumul (allocation − 70 % du CA après abattement) ou simple complément jusqu'à l'allocation */
+    const A=num(b.are),ab=b.areAbat==null||b.areAbat===''?34:num(b.areAbat),k=b.areMode==='compl'?1:.7*(1-ab/100);
+    const areAt=ca=>A>0?Math.max(0,A-k*ca):0,areFinCA=A>0&&k>0?A/k:null;
     const recF=(b.fixes||[]).reduce((a,l)=>a+(l.tva?num(l.m)-num(l.m)/1.2:0),0),recH=b.carbTva?carbTTC-carbTTC/1.2:0;
-    const at=h=>{const ca=h*taux,cot=ca*num(b.cotis)/100,fis=ca*num(b.fiscal)/100,carb=h*v,tvaCol=ca*.2,tvaRec=recF+h*recH;return{h,ca,cot,fis,carb,fixes:F,net:ca-cot-fis-carb-F,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
-    return{taux,F,v,c,marge,WK,seuilH:need(0),objH:need(num(b.objectif)),objectif:num(b.objectif),need,at}}
+    const at=h=>{const ca=h*taux,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v,tvaCol=ca*.2,tvaRec=recF+h*recH;const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,cot,fis,carb,fixes:F,net,are,total:net+are,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
+    const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
+    return{vac,are:A,areFinCA,areFinH:areFinCA!=null&&taux>0?areFinCA/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)),objectif:num(b.objectif),need,at}}
   /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
   function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set();
     try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
