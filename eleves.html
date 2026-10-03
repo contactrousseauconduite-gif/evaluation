@@ -854,6 +854,7 @@ const byDate=(a,b)=>(a.date||'').localeCompare(b.date||'')||(a.createdAt||0)-(b.
 function dossier(e){const r=RC.recordsOf(e.id);r.ev.sort(byDate);r.ex.sort(byDate);r.bi.sort(byDate);r.de.sort(byDate);
   const rec=[...r.ev,...r.ex,...r.bi].map(x=>x.updatedAt||0);const last=rec.length?Math.max(...rec):(e.createdAt||0);
   return{e,ev:r.ev,ex:r.ex,bi:r.bi,de:r.de,last}}
+const pratManu=e=>e&&e.pratManu&&+e.pratManu.h>0?e.pratManu:null;
 const evPrat=ev=>{const r=ev.result||{};return ev.acceptee==='Non'&&r.retPrat?r.retPrat:r.pratique};
 const evCat=res=>res>12?'bon':res>=-12?'satisfaisant':'faible';
 function critVal(x,k){if(k==='inst')return x.inst;if(k==='verif')return x.verif?Object.values(x.verif).filter(Boolean).length:null;
@@ -879,6 +880,7 @@ function renderList(){
     l.map(d=>{const lx=d.ex[d.ex.length-1],le=d.ev[d.ev.length-1],lb=d.bi[d.bi.length-1];
       const parts=[le?`évaluation le ${shortDate(le.date)}`:null,lb?`bilan le ${shortDate(lb.date)}`:null,d.ex.length?`${d.ex.length} examen${d.ex.length>1?'s':''} blanc${d.ex.length>1?'s':''}`:null,(c=>c?`carnet de route ${nkm(crStats(c).km)} km`:null)(RC.carnet(d.e.id))].filter(Boolean);
       const right=lx&&lx.result?`<div class="sc"><b>${fmt(lx.result.total)}<small>/31</small></b><span class="st ${lx.result.status}">${LABEL[lx.result.status]||''}</span></div>`:
+        pratManu(d.e)?`<div class="sc"><b>${String(+pratManu(d.e).h).replace('.',',')}<small> h</small></b><span>pratique prévue</span></div>`:
         le&&evPrat(le)!=null?`<div class="sc"><b>${evPrat(le)}<small> h</small></b><span>pratique prévue</span></div>`:
         lb&&lb.result?`<div class="sc"><b>${lb.result.ac}<small>/${lb.result.total}</small></b><span>objectifs acquis</span></div>`:'';
       return `<a class="card el" href="#e=${esc(d.e.id)}"><div class="open"><div class="who">${esc(RC.full(d.e))}</div><div class="sub">${parts.length?parts.join(', ').replace(/^./,c=>c.toUpperCase()):'Aucune fiche pour l’instant'}</div></div>${right}</a>`}).join('')}`;
@@ -891,7 +893,8 @@ function renderDossier(id){
   const d=dossier(e),le=d.ev[d.ev.length-1],lx=d.ex[d.ex.length-1],lb=d.bi[d.bi.length-1],a=age(e.naissance);
   const lastX=[...d.ex].reverse().find(x=>x.heures!==''&&x.heures!=null);
   const lastH=lastX?lastX.heures:(lb&&lb.heuresFaites!==''&&lb.heuresFaites!=null?lb.heuresFaites:null);
-  const prev=le&&evPrat(le)!=null?evPrat(le):lb&&lb.result&&lb.result.heuresPlus!=null?lb.result.totalH:null;
+  const pm=pratManu(e),prevAuto=le&&evPrat(le)!=null?evPrat(le):lb&&lb.result&&lb.result.heuresPlus!=null?lb.result.totalH:null;
+  const prev=pm?+pm.h:prevAuto,pEx=pm?+pm.exam||0:prevAuto!=null&&le&&+le.hExam||0;
   const ok=d.ex.filter(x=>x.result&&x.result.status==='favorable').length;
   $('#view').innerHTML=`
   <a href="#" class="back">‹ Tous les élèves</a>
@@ -910,7 +913,7 @@ function renderDossier(id){
     <button type="button" class="btn sec" id="msgBtn">Envoyer un message</button><button type="button" class="btn sec" id="memoBtn">Partager un document</button></div>
 
   <div class="tiles">
-    <div class="tile"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&+prev>0?`<small class="tx">Fourchette ${Math.max(25,Math.floor(+prev/5)*5)} à ${Math.max(25,Math.floor(+prev/5)*5)+4} h</small>`:''}${prev!=null&&le&&+le.hExam?`<small class="tx">+ ${+le.hExam} h pour l’examen pratique${+le.hExam>=2?', accompagnement compris':''}</small>`:''}</div>
+    <button type="button" class="tile tbtn" id="pBtn"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&+prev>0?`<small class="tx">Fourchette ${Math.max(25,Math.floor(+prev/5)*5)} à ${Math.max(25,Math.floor(+prev/5)*5)+4} h</small>`:''}${prev!=null&&pEx?`<small class="tx">+ ${pEx} h pour l’examen pratique${pEx>=2?', accompagnement compris':''}</small>`:''}<small>${pm?'Saisie à la main · modifier':prev!=null?'Modifier':'Saisir à la main'}</small></button>
     ${(()=>{const H=RC.heures(e.id),ag=H.lecons.length>0||H.adj!==0;
       return `<button type="button" class="tile tbtn" id="hBtn"><span>Heures effectuées</span><b>${ag?fmtH(H.total):lastH!=null?esc(String(lastH).replace('.',','))+' h':'–'}</b><small>${ag?`${H.n} leçon${H.n>1?'s':''} · détail`:'Voir le détail'}</small></button>`})()}
     <div class="tile"><span>Examens blancs réussis</span><b>${d.ex.length?`${ok} sur ${d.ex.length}`:'–'}</b></div>
@@ -997,6 +1000,26 @@ function signSection(e){const r=RC.signe(e.id);
     `<p class="empty2">Le document « Vos données personnelles » n’est pas encore signé.</p><div class="cr-acts" style="grid-template-columns:1fr"><button type="button" class="btn primary" data-sg-new>Faire signer sur la tablette</button></div>`}</section>`}
 /* ---------- heures effectuées (agenda Ornikar + ajustement) ---------- */
 const fmtH=h=>{const m=Math.max(0,Math.round(h*60)),H=Math.floor(m/60),r=m%60;return `${H} h${r?' '+String(r).padStart(2,'0'):''}`};
+function pratModal(id){const e=RC.eleve(id);if(!e)return;const d=dossier(e),le=d.ev[d.ev.length-1],lb=d.bi[d.bi.length-1];
+  const auto=le&&evPrat(le)!=null?+evPrat(le):lb&&lb.result&&lb.result.heuresPlus!=null?+lb.result.totalH:null,pm=pratManu(e);
+  let h=pm?+pm.h:auto!=null?Math.max(25,auto):25,ex=pm?+pm.exam||0:auto!=null&&le&&le.hExam!=null?+le.hExam:1,par=pm&&pm.par||'';
+  const box=document.createElement('div');box.className='shm';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
+  const paint=()=>{const lo=Math.max(25,Math.floor(h/5)*5);
+    box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Pratique prévue</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+      <p class="shm-note" style="margin:0">Pour ${esc(RC.full(e))}. À utiliser quand l’évaluation de départ a été faite par un autre enseignant.</p>
+      <div class="hm-adj"><span>Heures de pratique<small>Fourchette ${lo} à ${lo+4} h</small></span><div class="hm-st"><button type="button" class="btn" data-ph="-1" aria-label="Retirer une heure"${h<=25?' disabled':''}>−</button><b>${h} h</b><button type="button" class="btn" data-ph="1" aria-label="Ajouter une heure">+</button></div></div>
+      <div><div class="lab">Heures pour l’examen pratique, en plus</div><div class="seg">${[[0,'Aucune'],[1,'1 heure'],[2,'2 heures, avec accompagnement']].map(o=>`<button type="button" data-pe="${o[0]}" aria-pressed="${ex===o[0]}">${o[1]}</button>`).join('')}</div></div>
+      <label class="f">Évaluation réalisée par (facultatif)<input type="text" data-par value="${esc(par)}" placeholder="Nom de l’enseignant ou de l’auto-école" autocomplete="off"></label>
+      <div class="hm-tot"><b>${h+ex} h</b><span>au total${ex?`, dont ${ex} h pour l’examen`:''}</span></div>
+      <div class="actions"><button type="button" class="btn primary" data-ok>Enregistrer</button>${pm?`<button type="button" class="btn quiet" data-clear>${auto!=null?'Revenir à la valeur de l’évaluation':'Effacer'}</button>`:''}</div></div>`};
+  paint();document.body.appendChild(box);document.documentElement.style.overflow='hidden';
+  const close=()=>{box.remove();document.documentElement.style.overflow='';renderDossier(id)};
+  box.addEventListener('input',ev=>{if(ev.target.matches('[data-par]'))par=ev.target.value});
+  box.addEventListener('click',ev=>{const b=ev.target.closest('button');if(ev.target===box||(b&&b.dataset.x!=null)){close();return}if(!b)return;
+    if(b.dataset.ph){h=Math.max(25,Math.min(99,h+(+b.dataset.ph)));paint();return}
+    if(b.dataset.pe!=null){ex=+b.dataset.pe;paint();return}
+    if(b.dataset.clear!=null){RC.updateEleve(id,{pratManu:null});close();toast(auto!=null?'Valeur de l’évaluation rétablie':'Pratique prévue effacée');return}
+    if(b.dataset.ok!=null){RC.updateEleve(id,{pratManu:{h,exam:ex,par:par.trim(),at:Date.now()}});close();toast('Pratique prévue enregistrée')}})}
 function heuresModal(id){const e=RC.eleve(id);if(!e)return;const box=document.createElement('div');box.className='shm';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
   const paint=()=>{const H=RC.heures(id),linked=!!localStorage.getItem('rc:ics:url');
     box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Heures effectuées</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
@@ -1101,6 +1124,7 @@ $('#view').addEventListener('click',e=>{
         `Si ${T(tu,'tu as','vous avez')} apprécié la formation, un petit avis me ferait très plaisir.`,'','Bonne route et prudence !','Fabien','Rousseau Conduite'].join('\n')},
       {id:'libre',label:'Message libre',build:tu=>[`Bonjour${p?' '+p:''},`,'','','Fabien','Rousseau Conduite'].join('\n')}]});return}
   if(t.closest('#hBtn')){heuresModal(cur());return}
+  if(t.closest('#pBtn')){pratModal(cur());return}
   if(t.closest('[data-sg-new]')){const id=cur();RC.signDonnees(id,()=>renderDossier(id));return}
   if(t.closest('[data-sg-view]')){const id=cur(),r=RC.signe(id);if(r)RC.viewSigned(r,{onResign:()=>RC.signDonnees(id,()=>renderDossier(id))});return}
   if(t.closest('[data-cr-send]')){carnetSend(RC.eleve(cur()));return}
