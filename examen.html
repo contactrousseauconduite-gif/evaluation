@@ -746,6 +746,7 @@ window.RC=(function(){
     if(o.carbSem===undefined){const ph=num(o.kmh)*num(o.conso)/100*num(o.prixL);o.carbHs='30';o.carbSem=String(Math.round(ph*30))}
     if(o.vac===undefined)o.vac='5';
     if(o.per===undefined)o.per='70';
+    if(o.treso===undefined){o.treso='100';o.tresoObj='';o.tresoNow=''}
     if(o.tauxTTC===undefined){o.tauxTTC=true;const t=num(o.taux);if(t>0)o.taux=String(Math.round(t*120)/100).replace('.',',')}
     if(o.are===undefined){o.are='1100';o.areMode='cumul';o.areAbat='34'}
     return o}
@@ -761,15 +762,15 @@ window.RC=(function(){
     const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(51,Math.max(0,num(b.vac))),WK=(52-vac)/12;
     /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
     const carbMT=hsW>0?0:num(b.carbSem)*WK,carbM=carbMT/(b.carbTva?1.2:1);
-    const per=Math.max(0,num(b.per));
+    const per=Math.max(0,num(b.per)),treso=Math.max(0,num(b.treso));
     const need=net=>marge>0?(F+carbM+net)/marge:null;
     /* aide France Travail (ARE) : règle de cumul (allocation − 70 % du CA après abattement) ou simple complément jusqu'à l'allocation */
     const A=num(b.are),ab=b.areAbat==null||b.areAbat===''?34:num(b.areAbat),k=b.areMode==='compl'?1:.7*(1-ab/100);
     const areAt=ca=>A>0?Math.max(0,A-k*ca):0,areFinCA=A>0&&k>0?A/k:null;
     const recF=(b.fixes||[]).reduce((a,l)=>a+(l.tva?num(l.m)-num(l.m)/1.2:0),0),recH=b.carbTva?carbTTC-carbTTC/1.2:0,recM=carbMT-carbM;
-    const at=h=>{const ca=h*taux,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v+(h>0?carbM:0),tvaCol=ca*.2,tvaRec=recF+h*recH+(h>0?recM:0);const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,cot,fis,carb,fixes:F,net,are,per,total:net+are-per,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
+    const at=h=>{const ca=h*taux,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v+(h>0?carbM:0),tvaCol=ca*.2,tvaRec=recF+h*recH+(h>0?recM:0);const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,cot,fis,carb,fixes:F,net,are,per,treso,total:net+are-per-treso,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
     const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
-    return{vac,per,carbM,carbFixe:hsW<=0,are:A,areFinCA,areFinH:areFinCA!=null&&taux>0?areFinCA/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per),objectif:num(b.objectif),need,at}}
+    return{vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,areFinH:areFinCA!=null&&taux>0?areFinCA/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
   /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
   function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set();
     try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;

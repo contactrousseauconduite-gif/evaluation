@@ -838,6 +838,7 @@ window.RC=(function(){
     if(o.carbSem===undefined){const ph=num(o.kmh)*num(o.conso)/100*num(o.prixL);o.carbHs='30';o.carbSem=String(Math.round(ph*30))}
     if(o.vac===undefined)o.vac='5';
     if(o.per===undefined)o.per='70';
+    if(o.treso===undefined){o.treso='100';o.tresoObj='';o.tresoNow=''}
     if(o.tauxTTC===undefined){o.tauxTTC=true;const t=num(o.taux);if(t>0)o.taux=String(Math.round(t*120)/100).replace('.',',')}
     if(o.are===undefined){o.are='1100';o.areMode='cumul';o.areAbat='34'}
     return o}
@@ -853,15 +854,15 @@ window.RC=(function(){
     const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(51,Math.max(0,num(b.vac))),WK=(52-vac)/12;
     /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
     const carbMT=hsW>0?0:num(b.carbSem)*WK,carbM=carbMT/(b.carbTva?1.2:1);
-    const per=Math.max(0,num(b.per));
+    const per=Math.max(0,num(b.per)),treso=Math.max(0,num(b.treso));
     const need=net=>marge>0?(F+carbM+net)/marge:null;
     /* aide France Travail (ARE) : règle de cumul (allocation − 70 % du CA après abattement) ou simple complément jusqu'à l'allocation */
     const A=num(b.are),ab=b.areAbat==null||b.areAbat===''?34:num(b.areAbat),k=b.areMode==='compl'?1:.7*(1-ab/100);
     const areAt=ca=>A>0?Math.max(0,A-k*ca):0,areFinCA=A>0&&k>0?A/k:null;
     const recF=(b.fixes||[]).reduce((a,l)=>a+(l.tva?num(l.m)-num(l.m)/1.2:0),0),recH=b.carbTva?carbTTC-carbTTC/1.2:0,recM=carbMT-carbM;
-    const at=h=>{const ca=h*taux,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v+(h>0?carbM:0),tvaCol=ca*.2,tvaRec=recF+h*recH+(h>0?recM:0);const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,cot,fis,carb,fixes:F,net,are,per,total:net+are-per,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
+    const at=h=>{const ca=h*taux,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v+(h>0?carbM:0),tvaCol=ca*.2,tvaRec=recF+h*recH+(h>0?recM:0);const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,cot,fis,carb,fixes:F,net,are,per,treso,total:net+are-per-treso,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
     const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
-    return{vac,per,carbM,carbFixe:hsW<=0,are:A,areFinCA,areFinH:areFinCA!=null&&taux>0?areFinCA/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per),objectif:num(b.objectif),need,at}}
+    return{vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,areFinH:areFinCA!=null&&taux>0?areFinCA/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
   /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
   function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set();
     try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
@@ -903,7 +904,7 @@ let tT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on
 RC.setToast(toast);
 
 /* valeurs de départ : celles du prévisionnel Ornikar, à remplacer par les vraies */
-const DEF=()=>({v:1,exemple:true,taux:'32,4',tauxTTC:true,objectif:'2000',cotis:'24,6',cotisAcre:'13,1',acreFin:'2027-03-31',fiscal:'2,2',vac:'5',per:'70',are:'1100',areMode:'cumul',areAbat:'34',
+const DEF=()=>({v:1,exemple:true,taux:'32,4',tauxTTC:true,objectif:'2000',cotis:'24,6',cotisAcre:'13,1',acreFin:'2027-03-31',fiscal:'2,2',vac:'5',per:'70',treso:'100',tresoObj:'',tresoNow:'',are:'1100',areMode:'cumul',areAbat:'34',
   carbSem:'70',carbHs:'30',carbTva:true,autreH:'0',sim:30,
   fixes:[{id:newId(),n:'Voiture (loyer et entretien)',m:'550',tva:false},{id:newId(),n:'Assurances',m:'110',tva:false},
     {id:newId(),n:'Expert-comptable',m:'',tva:false},{id:newId(),n:'Téléphone',m:'',tva:true},{id:newId(),n:'CFE (par mois)',m:'0',tva:false}]});
@@ -954,6 +955,11 @@ function render(){
     <section class="block"><h2 class="pill">Mon épargne retraite (PER)</h2><div class="grid">
       ${inp('per','Versement par mois, en moyenne','€','Épargne personnelle, mise de côté après vos frais. Laissez vide si aucune.')}</div>
       <p class="lead2" style="margin:8px 0 0">Elle s’ajoute à votre objectif : il faut la gagner en plus du revenu que vous voulez garder.</p></section>
+    <section class="block"><h2 class="pill">Ma trésorerie d’entreprise</h2>
+      <p class="lead2">Une réserve sur le compte professionnel pour absorber un mois creux, une réparation ou une régularisation. Elle s’ajoute à la TVA à reverser, qui n’est pas à vous.</p>
+      <div class="grid">${inp('treso','Mise de côté par mois','€','Laissez vide si aucune')}${inp('tresoNow','Réserve déjà constituée','€','Ce que vous avez aujourd’hui de côté, hors TVA à reverser')}
+        ${inp('tresoObj','Réserve visée','€','Laissez vide pour viser 3 mois de frais fixes')}</div>
+      <div class="acre on" id="tresoMsg" aria-live="polite"></div></section>
   </div><div>
     <section class="sign" id="res" aria-live="polite"></section>
     <section class="block" id="mois"></section>
@@ -986,7 +992,7 @@ function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{ac
   else res.innerHTML=`<div class="rl">Pour couvrir vos frais</div>
     <div class="rb"><b>${hh(c.seuilH)}</b><span>par mois</span></div>
     <p class="rs">soit environ <b>${hh(c.seuilH/WK)}</b> par semaine, ou <b>${eur(c.seuilH*c.taux)}</b> de chiffre d’affaires hors TVA.</p>
-    <div class="r2"><div><small>Pour vous verser ${eur(c.objectif)} net${c.per?' et épargner '+eur(c.per):''}</small><b>${hh(c.objH)}</b><span>par mois, soit ${hh(c.objH/WK)} par semaine</span></div>
+    <div class="r2"><div><small>Pour vous verser ${eur(c.objectif)} net${c.per+c.treso?' et mettre de côté '+eur(c.per+c.treso):''}</small><b>${hh(c.objH)}</b><span>par mois, soit ${hh(c.objH/WK)} par semaine</span></div>
       <div><small>Chaque heure vous laisse</small><b>${eur2(c.marge)}</b><span>${c.carbFixe?'après cotisations':'après cotisations et carburant'}</span></div></div>
     ${c.are&&c.objAre!=null&&c.objAre<c.objH?`<div class="ra"><b>Avec votre aide France Travail</b><span>Votre objectif de ${eur(c.objectif)} est atteint dès <b>${hh(c.objAre)}</b> par mois, soit ${hh(c.objAre/WK)} par semaine.</span></div>`:''}
     ${cA?`<div class="ra"><b>Après l’ACRE, à partir du ${jour(ai.apres)}</b>${cA.marge>0?`<span>Il faudra <b>${hh(cA.seuilH)}</b> par mois pour couvrir vos frais et <b>${hh(cA.objH)}</b> pour votre objectif, soit ${hh(cA.objH/WK)} par semaine. Chaque heure vous laissera ${eur2(cA.marge)}.</span>`:`<span>Avec le taux normal, une heure de leçon ne couvrira plus ses propres frais.</span>`}</div>`:''}`;
@@ -1002,12 +1008,21 @@ function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{ac
     msg=tot<c.seuilH?`Il manque <b>${hh(c.seuilH-tot)}</b> ce mois-ci pour couvrir vos frais. Résultat estimé du mois : <b class="neg">${eur(a.net)}</b>.`:
       tot<c.objH?`Vos frais sont couverts. Résultat estimé du mois : <b>${eur(a.net)}</b>. Il manque <b>${hh(c.objH-tot)}</b> pour atteindre votre objectif.`:
       `Objectif atteint. Résultat estimé du mois : <b>${eur(a.net)}</b>.`;
-    if(c.are||c.per)msg+=` ${c.are?`Aide France Travail estimée : <b>${eur(a.are)}</b>. `:''}${c.per?`Épargne retraite : <b>${eur(c.per)}</b>. `:''}Il vous resterait <b class="${a.total<0?'neg':''}">${(a.total<0?'− ':'')+eur(Math.abs(a.total))}</b> au total.`}
+    if(c.are||c.per||c.treso)msg+=` ${c.are?`Aide France Travail estimée : <b>${eur(a.are)}</b>. `:''}${c.per?`Épargne retraite : <b>${eur(c.per)}</b>. `:''}${c.treso?`Trésorerie : <b>${eur(c.treso)}</b>. `:''}Il vous resterait <b class="${a.total<0?'neg':''}">${(a.total<0?'− ':'')+eur(Math.abs(a.total))}</b> au total.`}
   if(document.activeElement&&document.activeElement.id==='moisDone'){$('#moisMsg').innerHTML=msg;$('#moisBar').innerHTML=bar}
   else $('#mois').innerHTML=`<h2 class="pill">Ce mois-ci, ${esc(nom)}</h2>
     <div id="moisBar">${bar}</div><p class="lead2" id="moisMsg" style="margin:10px 0">${msg}</p>
     <label class="f">Heures de leçon déjà faites ce mois-ci<span class="suf"><input type="text" inputmode="decimal" id="moisDone" value="${ov!=null&&!isNaN(ov)?esc(B.mois.done):''}" placeholder="${String(Math.round(M.done*10)/10).replace('.',',')}"><i>h</i></span>
       <small>${linked?'Rempli d’après votre agenda Ornikar. Corrigez le chiffre si besoin.':'Reliez l’agenda Ornikar (« Mes leçons » sur l’accueil) pour le remplir automatiquement, ou tapez le chiffre.'}</small></label>`;
+  /* trésorerie */
+  {const pn=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return isNaN(n)?0:n},rep=3*(c.F+c.carbM),own=pn(B.tresoObj)>0,cible=own?pn(B.tresoObj):rep,now=pn(B.tresoNow),reste=cible-now;
+   const quoi=own?`votre réserve de ${nw(eur(cible))}`:`3 mois de frais fixes, soit ${nw(eur(cible))}`;let h;
+   if(cible<=0)h='<b>Renseignez vos frais fixes ou une réserve visée.</b>';
+   else if(reste<=0)h=`<b>Réserve atteinte.</b><span>Vous avez déjà ${quoi} de côté.</span>`;
+   else if(!c.treso)h=`<b>Aucune mise de côté prévue.</b><span>Il manque ${nw(eur(reste))} pour atteindre ${quoi}.</span>`;
+   else{const n=Math.ceil(reste/c.treso),d=new Date();d.setDate(1);d.setMonth(d.getMonth()+n);
+     h=`<b>${nw(eur(c.treso))} par mois : ${quoi} en ${n} mois.</b><span>Vous y serez vers ${d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}${now>0?`, en partant de ${nw(eur(now))}`:''}. Cela représente ${nw(hh(c.marge>0?c.treso/c.marge:0))} de leçon par mois.</span>`}
+   $('#tresoMsg').innerHTML=h}
   /* simulateur */
   const hs=+$('#sim').value,a=c.at(hs*WK);$('#simV').textContent=hs+' h';
   {const v=c.vac,sw=52-v,hl=v*hs,pl=v>1?'s':'';
@@ -1015,11 +1030,11 @@ function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{ac
     `<b>${sp(String(v).replace('.',','))} semaine${pl} de vacances : ${nw(eur(Math.max(0,hl*c.marge)))} de revenu en moins par an.</b><span>Au rythme du simulateur (${hs} h par semaine), cela représente ${nw(hh(hl))} de leçons et ${nw(eur(hl*c.taux))} de chiffre d’affaires hors TVA en moins sur l’année, soit ${nw(eur(Math.max(0,hl*c.marge)/12))} de revenu par mois.</span><span>La page en tient déjà compte : les heures « par semaine » sont celles de vos ${sp(String(sw).replace('.',','))} semaines travaillées, et les montants par mois sont des moyennes sur l’année.</span>`}
   const row=(l,v,cls)=>`<div class="sr ${cls||''}"><span>${l}</span><b>${v}</b></div>`;
   $('#simR').innerHTML=row(`Chiffre d’affaires hors TVA (${hh(hs*WK)} par mois${c.vac?' en moyenne':''})`,eur(a.ca))+row('Frais fixes','− '+eur(a.fixes))+row(parseFloat(String(B.autreH).replace(',','.'))>0?'Carburant et autres frais':'Carburant','− '+eur(a.carb))+
-    row(`Cotisations sociales (${pct(c.cotis)})`,'− '+eur(a.cot))+(a.fis?row('Impôt et autres taxes','− '+eur(a.fis)):'')+row(c.are||c.per?'Il vous reste de votre activité':'Il vous reste',(a.net<0?'− ':'')+eur(Math.abs(a.net)),'tot'+(a.net<0?' neg':''))+
-    (c.are?row('Aide France Travail (ARE)','+ '+eur(a.are)):'')+(c.per?row('Épargne retraite (PER)','− '+eur(c.per)):'')+(c.are||c.per?row('Total du mois',(a.total<0?'− ':'')+eur(Math.abs(a.total)),'tot'+(a.total<0?' neg':'')):'');
+    row(`Cotisations sociales (${pct(c.cotis)})`,'− '+eur(a.cot))+(a.fis?row('Impôt et autres taxes','− '+eur(a.fis)):'')+row(c.are||c.per||c.treso?'Il vous reste de votre activité':'Il vous reste',(a.net<0?'− ':'')+eur(Math.abs(a.net)),'tot'+(a.net<0?' neg':''))+
+    (c.are?row('Aide France Travail (ARE)','+ '+eur(a.are)):'')+(c.per?row('Épargne retraite (PER)','− '+eur(c.per)):'')+(c.treso?row('Trésorerie de l’entreprise','− '+eur(c.treso)):'')+(c.are||c.per||c.treso?row('Total du mois',(a.total<0?'− ':'')+eur(Math.abs(a.total)),'tot'+(a.total<0?' neg':'')):'');
   $('#tvaR').innerHTML=row('Vous facturez, TVA comprise',eur(a.ttc))+row('dont TVA facturée à 20 %',eur(a.tvaCol))+row('TVA récupérée sur vos frais','− '+eur(a.tvaRec))+
     row(a.tvaDue>=0?'TVA à reverser, à mettre de côté':'Crédit de TVA',eur(Math.abs(a.tvaDue)),'tot');
-  const X=!!(c.are||c.per);
+  const X=!!(c.are||c.per||c.treso);
   $('#scen').innerHTML=`<thead><tr><th>Par semaine</th><th>Par mois</th><th>Chiffre d’affaires</th>${X?'':'<th>Cotisations</th>'}<th>${X?'Activité':'Il vous reste'}</th>${c.are?'<th>ARE</th>':''}${X?'<th>Total</th>':''}${cA?`<th>${X?'Total après':'Après'} l’ACRE</th>`:''}</tr></thead><tbody>${[15,20,25,30,35,40].map(h=>{const x=c.at(h*WK),y=cA?cA.at(h*WK):null;
     return `<tr><td>${h} h</td><td>${hh(h*WK)}</td><td>${eur(x.ca)}</td>${X?'':`<td>${eur(x.cot+x.fis)}</td>`}<td class="${x.net<0?'over':''}"><b>${(x.net<0?'− ':'')+eur(Math.abs(x.net))}</b></td>${c.are?`<td>${eur(x.are)}</td>`:''}${X?`<td class="${x.total<0?'over':''}"><b>${(x.total<0?'− ':'')+eur(Math.abs(x.total))}</b></td>`:''}${y?(z=>`<td class="${z<0?'over':''}">${(z<0?'− ':'')+eur(Math.abs(z))}</td>`)(X?y.total:y.net):''}</tr>`}).join('')}</tbody>`}
 
