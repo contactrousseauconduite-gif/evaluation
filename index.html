@@ -421,7 +421,7 @@ a.card{text-decoration:none;color:inherit}
   <div class="sv-a"><button type="button" class="btn go" data-bk-now><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l6 10-4 7H6l-4-7z"/><path d="M8 3l6 10h8M2 13h12l-4 7"/></svg>Sauvegarder dans Drive</button><button type="button" class="btn quiet more" id="svMore" aria-label="Autres options de sauvegarde">⋯</button></div>
   <input type="file" accept=".json,.txt,application/json,text/plain" id="restoreFile" hidden></section>
 </div></div>
-<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 68</p>
+<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 69</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -873,6 +873,8 @@ window.RC=(function(){
     if(o.tauxTTC===undefined){o.tauxTTC=true;const t=num(o.taux);if(t>0)o.taux=String(Math.round(t*120)/100).replace('.',',')}
     if(o.are===undefined)o.are='1100';
     o.areMode='cumul';o.areAbat='34';
+    /* carburant : un seul montant par semaine travaillée, plus de frais par heure */
+    o.carbHs='';o.autreH='0';
     return o}
   /* ACRE : taux réduit jusqu'à la date de fin incluse, puis taux normal */
   const acreOn=(b,d)=>!!b.acreFin&&iso(d||Date.now())<=b.acreFin;
