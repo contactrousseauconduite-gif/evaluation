@@ -416,17 +416,18 @@ a.card{text-decoration:none;color:inherit}
 </div><div class="colB">
 <section class="docs"><h2 class="h2">Documents pour les élèves</h2><div class="block list" id="docs"></div></section>
 <section id="veh"></section>
+<section id="bud"></section>
 <section class="block save2"><div class="sv-t"><b>Sauvegarde</b><span data-bk-last></span></div>
   <div class="sv-a"><button type="button" class="btn go" data-bk-now><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l6 10-4 7H6l-4-7z"/><path d="M8 3l6 10h8M2 13h12l-4 7"/></svg>Sauvegarder dans Drive</button><button type="button" class="btn quiet more" id="svMore" aria-label="Autres options de sauvegarde">⋯</button></div>
   <input type="file" accept=".json,.txt,application/json,text/plain" id="restoreFile" hidden></section>
 </div></div>
-<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 54</p>
+<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 70</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
-  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',hr:'rc:heures',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
+  const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',hr:'rc:heures',bu:'rc:budget',dl:'rc:supprimes',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
   const DAY=864e5,LIMIT=7;
   const get=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -509,20 +510,22 @@ window.RC=(function(){
   function lastText(){const s=status();return s.last?`Dernière sauvegarde le ${fr(s.last)}.`:'Aucune sauvegarde faite pour l’instant.'}
   async function backup(opt){const ev=list(K.ev),ex=list(K.ex),bi=list(K.bi),de=list(K.de),ca=list(K.ca),sg=list(K.sg),hr=list(K.hr),el=eleves();
     const ve=veh();if(!ev.length&&!ex.length&&!bi.length&&!el.length&&!ve&&!de.length){toast('Aucune fiche à sauvegarder');return}
-    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,heures:hr,pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
+    const json=JSON.stringify({app:'rousseau-conduite',v:5,date:Date.now(),eleves:el,evaluations:ev,examens:ex,bilans:bi,vehicule:ve,dessins:de,carnets:ca,signes:sg,heures:hr,budget:budget(),supprimes:list(K.dl),pro:(()=>{try{return JSON.parse(get('rc-eval:formateur'))}catch(e){return null}})()}),base=`sauvegarde-rousseau-conduite-${iso(Date.now())}`;
     const nf=ev.length+ex.length+bi.length,sum=`${el.length} élève${el.length>1?'s':''}, ${nf} fiche${nf>1?'s':''}`;
     const done=m=>{set(K.last,String(Date.now()));check();toast(m)};
     if(!(opt&&opt.download)){try{const file=new File([json],base+'.txt',{type:'text/plain'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Sauvegarde Rousseau Conduite',text:'Sauvegarde de l’appli Rousseau Conduite du '+fr(Date.now())});done('Sauvegarde envoyée : '+sum);return}}
       catch(e){if(e&&e.name==='AbortError'){toast('Sauvegarde annulée');return}}}
     saveFile(base+'.json',json);done('Sauvegarde téléchargée : '+sum)}
-  function mergeInto(k,items,ok){const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
-    (items||[]).filter(x=>x&&x.id&&ok(x)).forEach(x=>{n++;if(!byId[x.id]||(x.updatedAt||0)>(byId[x.id].updatedAt||0))byId[x.id]=x});
+  function mergeInto(k,items,ok){const gone=new Set(list(K.dl));const byId=Object.fromEntries(list(k).map(x=>[x.id,x]));let n=0;
+    (items||[]).filter(x=>x&&x.id&&!gone.has(x.id)&&ok(x)).forEach(x=>{n++;if(!byId[x.id]||(x.updatedAt||0)>(byId[x.id].updatedAt||0))byId[x.id]=x});
     if(n)set(k,JSON.stringify(Object.values(byId)));return n}
   async function restore(file){
     try{const d=JSON.parse(await file.text());
+      if(Array.isArray(d.supprimes)&&d.supprimes.length)set(K.dl,JSON.stringify([...new Set([...list(K.dl),...d.supprimes])]));
       const el=mergeInto(K.el,d.eleves,()=>true),ev=mergeInto(K.ev,d.evaluations,x=>x.v===2),ex=mergeInto(K.ex,d.examens,x=>x.v===1),bi=mergeInto(K.bi,d.bilans,x=>x.v===1),de=mergeInto(K.de,d.dessins,x=>x.v===1),ca=mergeInto(K.ca,d.carnets,x=>x.v===1&&x.eleveId),sg=mergeInto(K.sg,d.signes,x=>x.v===1&&x.eleveId),hr=mergeInto(K.hr,d.heures,x=>x.v===1&&x.eleveId);
       if(d.pro&&(d.pro.formateur||d.pro.autorisation)){let cur={};try{cur=JSON.parse(get('rc-eval:formateur'))||{}}catch(e){}if(!cur.formateur&&!cur.autorisation)set('rc-eval:formateur',JSON.stringify(d.pro))}
+      if(d.budget&&d.budget.v===1){const cb=budget();if(!cb||(d.budget.updatedAt||0)>(cb.updatedAt||0))set(K.bu,JSON.stringify(d.budget))}
       let vo=0;if(d.vehicule&&d.vehicule.contrat){const cur=veh();if(!cur||(d.vehicule.updatedAt||0)>(cur.updatedAt||0)){set(K.ve,JSON.stringify(d.vehicule));vo=1}}
       if(!el&&!ev&&!ex&&!bi&&!de&&!ca&&!sg&&!hr&&!vo&&!(d.vehicule&&d.vehicule.contrat))throw 0;syncAll();
       toast(`Restauré : ${ev} évaluation${ev>1?'s':''}, ${ex} examen${ex>1?'s':''} blanc${ex>1?'s':''}, ${bi} bilan${bi>1?'s':''}`);check();return true}
@@ -850,7 +853,57 @@ window.RC=(function(){
         const l=list(K.sg);l.push(rec);set(K.sg,JSON.stringify(l));
         if(!list(K.sg).some(x=>x.id===rec.id)){toast('Mémoire pleine : faites une sauvegarde puis réessayez');return}
         el._close();toast('Document signé et enregistré dans le dossier');if(onDone)onDone(rec);sendSigned(rec)}})}
+  /* ---------- suppression d'une fiche (évaluation, examen blanc, bilan, schéma, document signé) ---------- */
+  function deleteRecord(kind,id){const k={ev:K.ev,ex:K.ex,bi:K.bi,de:K.de,sg:K.sg}[kind];if(!k||!id)return false;
+    set(k,JSON.stringify(list(k).filter(x=>x.id!==id)));
+    const g=list(K.dl);if(!g.includes(id)){g.push(id);set(K.dl,JSON.stringify(g.slice(-2000)))}
+    const dk={ev:'rc-eval:draft',ex:'rc-exam:draft',bi:'rc-bilan:draft',de:'rc:tableau:draft'}[kind];
+    if(dk){try{const dr=JSON.parse(get(dk));if(dr&&dr.id===id)localStorage.removeItem(dk)}catch(e){}}
+    return !list(k).some(x=>x.id===id)}
   /* ---------- kilométrage du véhicule (LLD) ---------- */
+  /* ---------- budget : frais réels, seuil de rentabilité ---------- */
+  function budget(){try{const o=JSON.parse(get(K.bu));return o&&o.v===1?budgetMig(o):null}catch(e){return null}}
+  /* anciennes fiches budget : un seul taux de cotisations, carburant saisi par heure */
+  function budgetMig(o){
+    if(o.acreFin===undefined){const a=String(o.cotis).replace('.',',')==='13,1';o.acreFin='2027-03-31';o.cotisAcre=a?o.cotis:'13,1';if(a)o.cotis='24,6'}
+    if(o.carbSem===undefined){const ph=num(o.kmh)*num(o.conso)/100*num(o.prixL);o.carbHs='30';o.carbSem=String(Math.round(ph*30))}
+    if(o.vac===undefined)o.vac='5';
+    if(o.per===undefined)o.per='70';
+    if(o.treso===undefined){o.treso='100';o.tresoObj='';o.tresoNow=''}
+    if(o.tauxTTC===undefined){o.tauxTTC=true;const t=num(o.taux);if(t>0)o.taux=String(Math.round(t*120)/100).replace('.',',')}
+    if(o.are===undefined)o.are='1100';
+    o.areMode='cumul';o.areAbat='34';
+    /* carburant : un seul montant par semaine travaillée, plus de frais par heure */
+    o.carbHs='';o.autreH='0';
+    return o}
+  /* ACRE : taux réduit jusqu'à la date de fin incluse, puis taux normal */
+  const acreOn=(b,d)=>!!b.acreFin&&iso(d||Date.now())<=b.acreFin;
+  const cotisEff=(b,o)=>num((o&&o.acre!=null?o.acre:acreOn(b))&&b.cotisAcre!=null&&b.cotisAcre!==''?b.cotisAcre:b.cotis);
+  function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
+  const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return isNaN(n)?0:n};
+  /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
+  const fraisHT=l=>num(l.m)/(l.tva?1.2:1);
+  function budgetCalc(b,o){const taux=num(b.taux)/(b.tauxTTC?1.2:1),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
+    const hsW=num(b.carbHs),carbTTC=hsW>0?num(b.carbSem)/hsW:0,v=carbTTC/(b.carbTva?1.2:1)+num(b.autreH);
+    const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(51,Math.max(0,num(b.vac))),WK=(52-vac)/12;
+    /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
+    const carbMT=hsW>0?0:num(b.carbSem)*WK,carbM=carbMT/(b.carbTva?1.2:1);
+    const per=Math.max(0,num(b.per)),treso=Math.max(0,num(b.treso));
+    const need=net=>marge>0?(F+carbM+net)/marge:null;
+    /* aide France Travail (ARE) : règle de cumul (allocation − 70 % du CA après abattement) ou simple complément jusqu'à l'allocation */
+    /* activité en BNC : abattement de 34 %, puis 70 % du reste retiré de l'allocation */
+    const A=num(b.are),k=.7*(1-.34);
+    const areAt=ca=>A>0?Math.max(0,A-k*ca):0,areFinCA=A>0&&k>0?A/k:null;
+    const recF=(b.fixes||[]).reduce((a,l)=>a+(l.tva?num(l.m)-num(l.m)/1.2:0),0),recH=b.carbTva?carbTTC-carbTTC/1.2:0,recM=carbMT-carbM;
+    const at=h=>{const ca=h*taux,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v+(h>0?carbM:0),tvaCol=ca*.2,tvaRec=recF+h*recH+(h>0?recM:0);const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,cot,fis,carb,fixes:F,net,are,per,treso,total:net+are-per-treso,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
+    const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
+    return{vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,areFinH:areFinCA!=null&&taux>0?areFinCA/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
+  /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
+  function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set();
+    try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
+      const h=Math.max(0,(end-ev.start)/36e5);if(end.getTime()<=t){done+=h;seen.add('h-'+(ev.uid||'')+'-'+ev.start.getTime())}else plan+=h})}catch(e){}
+    list(K.hr).forEach(x=>{const d=new Date(x.start);if(!x.off&&d.getFullYear()===y&&d.getMonth()===m&&!seen.has(x.id))done+=(x.min||0)/60});
+    return{done,plan,key:y+'-'+String(m+1).padStart(2,'0'),daysLeft:new Date(y,m+1,0).getDate()-now.getDate()}}
   function veh(){try{const o=JSON.parse(get(K.ve));return o&&o.contrat?o:null}catch(e){return null}}
   function vehSave(o){o.updatedAt=Date.now();set(K.ve,JSON.stringify(o))}
   const dayOf=s=>{const[y,m,d]=String(s).split('-').map(Number);return Date.UTC(y,m-1,d)/DAY};
@@ -868,8 +921,8 @@ window.RC=(function(){
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();try{syncHeures()}catch(e){}
-  return{veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
-    eleves,eleve,link,addEleve,updateEleve,deleteEleve,carnet,saveCarnet,syncHeures,heures,toggleLecon,jpegPdf,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
+  return{budget,budgetSave,budgetCalc,monthHours,fraisHT,veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
+    eleves,eleve,link,addEleve,updateEleve,deleteEleve,deleteRecord,carnet,saveCarnet,syncHeures,heures,toggleLecon,jpegPdf,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,downloadDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
 </script>
@@ -918,6 +971,15 @@ function render(){
       <div class="vbar" role="img" aria-label="${nkm(s.used)} km parcourus sur ${nkm(s.allow)}"><i style="width:${Math.min(100,s.used/s.allow*100)}%"></i><span class="mark" style="left:${Math.min(100,s.expAt(today)/s.allow*100)}%" title="Prévu à ce jour"></span></div>
       <div class="vl"><span><b>${nkm(s.used)}</b> / ${nkm(s.allow)} km</span>${s.last?(s.due?'<span class="due">Relevé du mois à faire</span>':`<span>Relevé le ${frDate(s.last.date)}</span>`):'<span class="due">Premier relevé à faire</span>'}</div>
       <div class="vact"><a class="btn go" href="vehicule.html#releve">Relever le compteur</a><a class="btn quiet" href="vehicule.html">Détails</a></div></div>`}
+  /* budget */
+  {const b=RC.budget(),EU='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 6.5A6.5 6.5 0 1 0 17 17.5M4 10h9M4 14h9"/></svg>',hh=n=>String(Math.round(n)).replace('.',',')+' h';
+   if(!b||b.exemple)$('#bud').innerHTML=`<a class="vw" href="budget.html"><span class="vic">${EU}</span><span class="vt"><b>Mon budget</b><span>Combien d’heures pour couvrir vos frais</span></span></a>`;
+   else{const c=RC.budgetCalc(b),M=RC.monthHours(),ov=b.mois&&b.mois.key===M.key?parseFloat(String(b.mois.done).replace(',','.')):NaN,done=isNaN(ov)?M.done:ov,tot=done+M.plan;
+    const ok=c.marge>0,st=!ok?['!','À vérifier','warn']:tot>=c.objH?['✓','Objectif atteint','ok']:tot>=c.seuilH?['✓','Frais couverts','ok']:['•','En cours','none'];
+    $('#bud').innerHTML=`<div class="vbox"><div class="vh"><b><span class="vic">${EU}</span>Mon budget, ce mois-ci</b><span class="vst ${st[2]}"><i aria-hidden="true">${st[0]}</i>${st[1]}</span></div>
+      ${ok?`<div class="vbar" role="img" aria-label="${hh(tot)} faites ou prévues, frais couverts à ${hh(c.seuilH)}"><i style="width:${Math.min(100,tot/Math.max(c.objH,tot,1)*100)}%"></i><span class="mark" style="left:${Math.min(100,c.seuilH/Math.max(c.objH,tot,1)*100)}%" title="Frais couverts"></span></div>
+      <div class="vl"><span><b>${hh(tot)}</b> faites ou prévues</span><span>Frais couverts à ${hh(c.seuilH)} · objectif ${hh(c.objH)}</span></div>`:''}
+      <div class="vact"><a class="btn quiet" href="budget.html">Voir mon budget</a></div></div>`}}
   RC.check();
 }
 $('#docs').innerHTML=RC.DOCS.map((d,i)=>`<div class="doc2"><div class="dt"><b>${esc(d.title)}</b><span>${esc(d.sub)}</span></div>${d.sign?`<button type="button" class="btn" data-doc-sign>Faire signer</button>`:''}<button type="button" class="btn go" data-doc-share="${i}">Envoyer</button><button type="button" class="btn quiet more" data-doc-more="${i}" aria-label="Autres actions pour ${esc(d.title)}">⋯</button></div>`).join('');
