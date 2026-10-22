@@ -780,46 +780,47 @@ window.RC=(function(){
   function budget(){try{const o=JSON.parse(get(K.bu));return o&&o.v===1?budgetMig(o):null}catch(e){return null}}
   /* anciennes fiches budget : un seul taux de cotisations, carburant saisi par heure */
   function budgetMig(o){
-    if(o.acreFin===undefined){const a=String(o.cotis).replace('.',',')==='13,1';o.acreFin='2027-03-31';o.cotisAcre=a?o.cotis:'13,1';if(a)o.cotis='24,6'}
+    if(o.acreFin===undefined){const a=num(o.cotis)===13.1;o.acreFin='2027-03-31';o.cotisAcre=a?o.cotis:'13,1';if(a)o.cotis='24,6'}
     if(o.carbSem===undefined){const ph=num(o.kmh)*num(o.conso)/100*num(o.prixL);o.carbHs='30';o.carbSem=String(Math.round(ph*30))}
     if(o.vac===undefined)o.vac='5';
     if(o.per===undefined)o.per='70';
     if(o.treso===undefined){o.treso='100';o.tresoObj='';o.tresoNow=''}
     if(o.tauxTTC===undefined){o.tauxTTC=true;const t=num(o.taux);if(t>0)o.taux=String(Math.round(t*120)/100).replace('.',',')}
     if(o.are===undefined)o.are='1100';
-    o.areMode='cumul';o.areAbat='34';
     /* carburant : un seul montant par semaine travaillée, plus de frais par heure */
     o.carbHs='';o.autreH='0';
     if(o.codes===undefined){o.codes='0';o.codePrix='120';o.reuss='0';o.reussPrix='25'}
     return o}
   /* ACRE : taux réduit jusqu'à la date de fin incluse, puis taux normal */
-  const acreOn=(b,d)=>!!b.acreFin&&iso(d||Date.now())<=b.acreFin;
+  const acreOn=(b,d)=>/^\d{4}-\d\d-\d\d$/.test(b.acreFin||'')&&String(b.cotisAcre??'').trim()!==''&&iso(d||Date.now())<=b.acreFin;
   const cotisEff=(b,o)=>num((o&&o.acre!=null?o.acre:acreOn(b))&&b.cotisAcre!=null&&b.cotisAcre!==''?b.cotisAcre:b.cotis);
   function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
-  const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return isNaN(n)?0:n};
+  const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return Number.isFinite(n)&&Math.abs(n)<1e9?n:0};
   /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
   const fraisHT=l=>num(l.m)/(l.tva?1.2:1);
   function budgetCalc(b,o){const taux=num(b.taux)/(b.tauxTTC?1.2:1),F=(b.fixes||[]).reduce((a,l)=>a+fraisHT(l),0);
     const hsW=num(b.carbHs),carbTTC=hsW>0?num(b.carbSem)/hsW:0,v=carbTTC/(b.carbTva?1.2:1)+num(b.autreH);
-    const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(51,Math.max(0,num(b.vac))),WK=(52-vac)/12;
+    const cr=cotisEff(b,o),c=(cr+num(b.fiscal))/100,marge=taux*(1-c)-v,vac=Math.min(47,Math.max(0,num(b.vac))),vacSaisi=num(b.vac),WK=(52-vac)/12;
     /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
     const carbMT=hsW>0?0:num(b.carbSem)*WK,carbM=carbMT/(b.carbTva?1.2:1);
     const per=Math.max(0,num(b.per)),treso=Math.max(0,num(b.treso));
     /* primes Ornikar (codes promo utilisés, élèves reçus du premier coup) : chiffre d'affaires hors TVA en plus des leçons */
     const bonus=Math.max(0,num(b.codes))*num(b.codePrix)+Math.max(0,num(b.reuss))*num(b.reussPrix),bonusNet=bonus*(1-c);
-    const need=net=>marge>0?Math.max(0,(F+carbM+net-bonusNet)/marge):null;
+    /* primes comptées dès la première leçon du mois : au moins une demi-heure si elles suffisent à elles seules */
+    const need=net=>{if(marge<=0)return null;const n=(F+carbM+net-bonusNet)/marge;return n>0?n:bonusNet>0?0.5:0};
     /* aide France Travail (ARE) : règle de cumul (allocation − 70 % du CA après abattement) ou simple complément jusqu'à l'allocation */
     /* activité en BNC : abattement de 34 %, puis 70 % du reste retiré de l'allocation */
-    const A=num(b.are),k=.7*(1-.34);
+    const A=Math.max(0,num(b.are)),k=.7*(1-.34);
     const areAt=ca=>A>0?Math.max(0,A-k*ca):0,areFinCA=A>0&&k>0?A/k:null;
     const recF=(b.fixes||[]).reduce((a,l)=>a+(l.tva?num(l.m)-num(l.m)/1.2:0),0),recH=b.carbTva?carbTTC-carbTTC/1.2:0,recM=carbMT-carbM;
     const at=h=>{const caL=h*taux,bo=h>0?bonus:0,ca=caL+bo,cot=ca*cr/100,fis=ca*num(b.fiscal)/100,carb=h*v+(h>0?carbM:0),tvaCol=ca*.2,tvaRec=recF+h*recH+(h>0?recM:0);const net=ca-cot-fis-carb-F,are=areAt(ca);return{h,ca,caL,bonus:bo,cot,fis,carb,fixes:F,net,are,per,treso,total:net+are-per-treso,tvaCol,tvaRec,tvaDue:tvaCol-tvaRec,ttc:ca+tvaCol}};
     const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
-    return{vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,bonus,areFinH:areFinCA!=null&&taux>0?Math.max(0,areFinCA-bonus)/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
+    const objH0=need(obj+per+treso),objM=obj>0&&A>0&&objAre!=null&&(objH0==null||objAre<objH0)?objAre:objH0;
+    return{objM,vacSaisi,vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,bonus,areFinH:areFinCA!=null&&taux>0?Math.max(0,areFinCA-bonus)/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
   /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
-  function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set();
+  function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set(),off=new Set(list(K.hr).filter(x=>x.off).map(x=>x.id));
     try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
-      const h=Math.max(0,(end-ev.start)/36e5);if(end.getTime()<=t){done+=h;seen.add('h-'+(ev.uid||'')+'-'+ev.start.getTime())}else plan+=h})}catch(e){}
+      const h=Math.max(0,(end-ev.start)/36e5),id='h-'+(ev.uid||'')+'-'+ev.start.getTime();if(off.has(id)){seen.add(id);return}if(end.getTime()<=t){done+=h;seen.add(id)}else plan+=h})}catch(e){}
     list(K.hr).forEach(x=>{const d=new Date(x.start);if(!x.off&&d.getFullYear()===y&&d.getMonth()===m&&!seen.has(x.id))done+=(x.min||0)/60});
     return{done,plan,key:y+'-'+String(m+1).padStart(2,'0'),daysLeft:new Date(y,m+1,0).getDate()-now.getDate()}}
   function veh(){try{const o=JSON.parse(get(K.ve));return o&&o.contrat?o:null}catch(e){return null}}
@@ -839,7 +840,7 @@ window.RC=(function(){
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();try{syncHeures()}catch(e){}
-  return{budget,budgetSave,budgetCalc,monthHours,fraisHT,veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
+  return{num,budget,budgetSave,budgetCalc,monthHours,fraisHT,veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,deleteRecord,carnet,saveCarnet,syncHeures,heures,toggleLecon,jpegPdf,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,downloadDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
