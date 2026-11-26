@@ -440,14 +440,16 @@ window.RC=(function(){
     /* garder les noms des fiches à jour */
     [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg,K.hr].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+    const g=new Set(list(K.dl));g.add(id);
+    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg,K.hr].forEach(k=>{const l=list(k);l.filter(x=>x.eleveId===id&&x.id).forEach(x=>g.add(x.id));set(k,JSON.stringify(l.filter(x=>x.eleveId!==id)))});
+    set(K.dl,JSON.stringify([...g].slice(-4000)))}
   const carnet=id=>list(K.ca).find(x=>x.eleveId===id)||null;
   function saveCarnet(eleveId,d){const l=list(K.ca).filter(x=>x.eleveId!==eleveId),rec={id:'c-'+eleveId,v:1,eleveId,profil:d.profil||{},trips:Array.isArray(d.trips)?d.trips:[],exportedAt:d.exportedAt||Date.now(),updatedAt:Date.now()};l.push(rec);set(K.ca,JSON.stringify(l));return rec}
   function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
     [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
     if(ch)set(k,JSON.stringify(recs))})}
-  /* ---------- heures réalisées, d'après l'agenda Ornikar ---------- */
-  /* Chaque leçon passée de l'agenda est gardée dans un journal : elle reste comptée même quand Ornikar la retire du fichier. */
+  /* ---------- heures réalisées, d'après l'agenda en ligne ---------- */
+  /* Chaque leçon passée de l'agenda est gardée dans un journal : elle reste comptée même quand elle disparaît du fichier. */
   function icsEvents(text){const un=[];String(text||'').replace(/\r\n?/g,'\n').split('\n').forEach(l=>{if(/^[ \t]/.test(l)&&un.length)un[un.length-1]+=l.slice(1);else un.push(l)});
     const pd=v=>{const m=(v||'').match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);if(!m)return null;const[,y,mo,d,h='0',mi='0',ss='0',z]=m;return z?new Date(Date.UTC(+y,+mo-1,+d,+h,+mi,+ss)):new Date(+y,+mo-1,+d,+h,+mi,+ss)};
     const ev=[];let c=null;un.forEach(l=>{if(l==='BEGIN:VEVENT'){c={};return}if(l==='END:VEVENT'){if(c&&c.start)ev.push(c);c=null;return}if(!c)return;const i=l.indexOf(':');if(i<0)return;
@@ -611,13 +613,13 @@ window.RC=(function(){
   }
   function closeShare(){if(shm){shm.remove();shm=null;document.documentElement.style.overflow=''}}
   const pages=(b,n,pad)=>Array.from({length:n},(_,i)=>`${b}-${pad?String(i+1).padStart(2,'0'):i+1}.jpg`);
-  const DOCS=[{url:'presentation-rousseau-conduite-v2.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-v2-page',3),
+  const DOCS=[{url:'presentation-rousseau-conduite-v3.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-v3-page',3),
      text:'Bonjour,\n\nComme convenu au téléphone, voici ma présentation et les étapes pour vous inscrire. Vous y trouverez aussi les points de rendez-vous et les liens utiles.\n\nN’hésitez pas à me contacter si vous avez la moindre question.\n\nFabien\nRousseau Conduite'},
-    {url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-page',2)},
-    {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-page',11,true)},
+    {url:'memo-verifications-premiers-secours-v2.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-v2-page',2)},
+    {url:'les-100-questions-v2.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-v2-page',11,true)},
     {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à faire signer lors de l’évaluation de départ',jpg:pages('donnees-page',1),sign:true},
-    {url:'parrainage-vjtz-v2.pdf',title:'Code parrainage VJTZ',sub:'Jusqu’à 100 € de réduction sur le permis Ornikar',jpg:['parrainage-vjtz-v2.jpg'],
-     text:'Bonjour ! Voici mon code parrainage Ornikar : VJTZ. Il vous permet d’avoir jusqu’à 100 € de réduction sur votre permis : créez votre compte sur ornikar.com, choisissez votre formule permis et saisissez le code VJTZ au moment du paiement.\n\nFabien\nRousseau Conduite'}];
+    {url:'parrainage-vjtz-v3.pdf',title:'Code parrainage VJTZ',sub:'Jusqu’à 100 € de réduction sur le permis',jpg:['parrainage-vjtz-v3.jpg'],
+     text:'Bonjour ! Voici mon code parrainage : VJTZ. Il vous permet d’avoir jusqu’à 100 € de réduction sur votre permis : lors de votre inscription en ligne, choisissez votre formule permis et saisissez le code VJTZ au moment du paiement.\n\nFabien\nRousseau Conduite'}];
 
   /* ---------- fiche en PDF (sans bibliothèque externe) ---------- */
   const A4W=794,PAD=38,INNER=A4W-2*PAD;
@@ -871,7 +873,7 @@ window.RC=(function(){
     /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
     const carbMT=hsW>0?0:num(b.carbSem)*WK,carbM=carbMT/(b.carbTva?1.2:1);
     const per=Math.max(0,num(b.per)),treso=Math.max(0,num(b.treso));
-    /* primes Ornikar (codes promo utilisés, élèves reçus du premier coup) : chiffre d'affaires hors TVA en plus des leçons */
+    /* primes partenaire (codes promo utilisés, élèves reçus du premier coup) : chiffre d'affaires hors TVA en plus des leçons */
     const bonus=Math.max(0,num(b.codes))*num(b.codePrix)+Math.max(0,num(b.reuss))*num(b.reussPrix),bonusNet=bonus*(1-c);
     /* primes comptées dès la première leçon du mois : au moins une demi-heure si elles suffisent à elles seules */
     const need=net=>{if(marge<=0)return null;const n=(F+carbM+net-bonusNet)/marge;return n>0?n:bonusNet>0?0.5:0};
@@ -884,7 +886,7 @@ window.RC=(function(){
     const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
     const objH0=need(obj+per+treso),objM=obj>0&&A>0&&objAre!=null&&(objH0==null||objAre<objH0)?objAre:objH0;
     return{objM,vacSaisi,vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,bonus,areFinH:areFinCA!=null&&taux>0?Math.max(0,areFinCA-bonus)/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
-  /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
+  /* heures du mois en cours d'après l'agenda en ligne : faites et encore prévues */
   function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set(),off=new Set(list(K.hr).filter(x=>x.off).map(x=>x.id));
     try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
       const h=Math.max(0,(end-ev.start)/36e5),id='h-'+(ev.uid||'')+'-'+ev.start.getTime();if(off.has(id)){seen.add(id);return}if(end.getTime()<=t){done+=h;seen.add(id)}else plan+=h})}catch(e){}
@@ -902,7 +904,7 @@ window.RC=(function(){
     if(!last){r.used=0;r.state='none';return r}
     const el=Math.max(0,dayOf(last.date)-s0);r.used=last.km-dep;r.expected=expAt(last.date);r.ecart=r.used-r.expected;
     r.state=r.ecart<=allow*.03?'ok':r.ecart<=allow*.07?'warn':'over';
-    if(el>=14){r.rateDay=r.used/el;r.perMonth=r.rateDay*30.44;r.projected=Math.round(r.rateDay*tot);r.over=Math.max(0,r.projected-allow);r.cost=c.prix?r.over*(+String(c.prix).replace(',','.')):null}
+    if(el>=14){r.rateDay=r.used/el;r.perMonth=r.rateDay*30.44;r.projected=Math.round(r.rateDay*tot);r.over=Math.max(0,r.projected-allow);r.cost=num(String(c.prix||'').replace(/[^0-9,.]/g,''))?r.over*num(String(c.prix).replace(/[^0-9,.]/g,'')):null}
     if(r.projected!=null)r.state=r.projected<=allow?'ok':r.projected<=allow*1.05?'warn':'over';
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
@@ -924,7 +926,7 @@ const newId=()=>'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,5
 let tT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('on'),2400)}
 RC.setToast(toast);
 
-/* valeurs de départ : celles du prévisionnel Ornikar, à remplacer par les vraies */
+/* valeurs de départ : celles d’un prévisionnel type, à remplacer par les vraies */
 const DEF=()=>({v:1,exemple:true,taux:'32,4',tauxTTC:true,objectif:'2000',cotis:'24,6',cotisAcre:'13,1',acreFin:'2027-03-31',fiscal:'2,2',vac:'5',codes:'0',codePrix:'120',reuss:'0',reussPrix:'25',per:'70',treso:'100',tresoObj:'',tresoNow:'',are:'1100',
   carbSem:'70',carbHs:'',carbTva:true,autreH:'0',sim:30,
   fixes:[{id:newId(),n:'Voiture (loyer et entretien)',m:'550',tva:true},{id:newId(),n:'Assurances',m:'110',tva:false},
@@ -941,12 +943,12 @@ function fixesHTML(){return B.fixes.map(l=>`<div class="fr" data-id="${l.id}">
 
 function render(){
   $('#view').innerHTML=`<h1 class="ph">Mon budget<span>Combien d’heures pour couvrir vos frais et atteindre votre objectif</span></h1>
-  ${B.exemple?`<div class="due"><b>Ces chiffres sont ceux du prévisionnel Ornikar.</b><span>Remplacez-les par vos vrais montants : les résultats se recalculent tout seuls.</span></div>`:''}
+  ${B.exemple?`<div class="due"><b>Ces chiffres sont des exemples.</b><span>Remplacez-les par vos vrais montants : les résultats se recalculent tout seuls.</span></div>`:''}
   <div class="bgrid"><div>
     <section class="block"><h2 class="pill">Ce que je gagne</h2><div class="grid">
       ${inp('taux','Par heure de leçon (TVA comprise)','€','Le montant TTC de vos factures. La page retire la TVA de 20 % : <b id="tauxHT"></b> hors TVA.')}
       ${inp('objectif','Mon objectif de revenu net par mois','€','Ce que vous voulez garder une fois tout payé')}</div></section>
-    <section class="block"><h2 class="pill">Mes primes Ornikar</h2>
+    <section class="block"><h2 class="pill">Mes primes partenaire</h2>
       <p class="lead2">Elles s’ajoutent à vos leçons sur les paiements de fin de semaine. Comptez en moyenne par mois.</p>
       <div class="grid">${inp('codes','Codes promo utilisés par mois','','Vos élèves ont 100 € de remise avec votre code')}${inp('codePrix','Ce que vous touchez par code (hors TVA)','€')}
         ${inp('reuss','Élèves reçus du premier coup par mois','')}${inp('reussPrix','Prime par réussite (hors TVA)','€')}</div>
@@ -968,7 +970,7 @@ function render(){
         <label class="f">Fin de l’ACRE<input type="date" data-k="acreFin" value="${esc(B.acreFin||'')}"><small>Laissez vide si vous n’avez pas l’ACRE</small></label>
         ${inp('cotis','Cotisations après l’ACRE','%')}${inp('fiscal','Impôt et autres taxes sur le chiffre d’affaires','%','Versement libératoire, formation… 0 si aucun')}</div>
       <div class="acre" id="acreMsg" aria-live="polite"></div>
-      <p class="lead2" style="margin:8px 0 0">Taux du prévisionnel Ornikar : demandez les vôtres à votre expert-comptable.</p></section>
+      <p class="lead2" style="margin:8px 0 0">Taux indicatifs : demandez les vôtres à votre expert-comptable.</p></section>
     <section class="block"><h2 class="pill">Mon aide France Travail (ARE)</h2>
       <p class="lead2">Elle complète votre activité tant que votre chiffre d’affaires reste faible, puis s’arrête.</p>
       <div class="grid">${inp('are','Mon allocation par mois','€','Laissez vide si vous ne la touchez plus')}
@@ -1044,7 +1046,7 @@ function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{ac
   else $('#mois').innerHTML=`<h2 class="pill">Ce mois-ci, ${esc(nom)}</h2>
     <div id="moisBar">${bar}</div><p class="lead2" id="moisMsg" style="margin:10px 0">${msg}</p>
     <label class="f">Heures de leçon déjà faites ce mois-ci<span class="suf"><input type="text" inputmode="decimal" id="moisDone" value="${ov!=null&&!isNaN(ov)?esc(B.mois.done):''}" placeholder="${String(Math.round(M.done*10)/10).replace('.',',')}"><i>h</i></span>
-      <small>${linked?'Rempli d’après votre agenda Ornikar. Corrigez le chiffre si besoin.':'Reliez l’agenda Ornikar (« Mes leçons » sur l’accueil) pour le remplir automatiquement, ou tapez le chiffre.'}</small></label>`;
+      <small>${linked?'Rempli d’après votre agenda en ligne. Corrigez le chiffre si besoin.':'Reliez votre agenda en ligne (« Mes leçons » sur l’accueil) pour le remplir automatiquement, ou tapez le chiffre.'}</small></label>`;
   $('#bonusMsg').innerHTML=c.bonus?`<b>${nw(eur(c.bonus))} hors TVA de primes par mois.</b><span>Après cotisations${num0(B.fiscal)?' et impôt':''}, il vous en reste environ ${nw(eur(c.bonus*(1-c.c)))}, ce qui fait baisser le nombre d’heures nécessaires.</span>`:'<b>Aucune prime comptée pour l’instant.</b><span>Indiquez combien de codes et de réussites vous comptez en moyenne par mois.</span>';
   /* trésorerie */
   {const pn=num0,ttcF=B.fixes.reduce((a,l)=>a+num0(l.m),0),rep=3*(ttcF+num0(B.carbSem)*c.WK),own=pn(B.tresoObj)>0,cible=own?pn(B.tresoObj):rep,now=pn(B.tresoNow),reste=cible-now;
@@ -1061,7 +1063,7 @@ function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{ac
    $('#vacMsg').innerHTML=!v?'<b>Aucune semaine de vacances comptée.</b><span>Les calculs portent sur 52 semaines de leçons.</span>':
     `<b>${sp(String(v).replace('.',','))} semaine${pl} de vacances : ${nw(eur(perte))} de revenu en moins par an.</b><span>Au rythme du simulateur (${hs} h par semaine), cela représente ${nw(hh(hl))} de leçons et ${nw(eur(hl*c.taux))} de chiffre d’affaires hors TVA en moins sur l’année, soit ${nw(eur(perte/12))} de revenu par mois, carburant économisé déduit.</span>${c.vacSaisi>47?`<span><b>Au maximum 47 semaines de vacances sont prises en compte.</b></span>`:''}<span>La page en tient déjà compte : les heures « par semaine » sont celles de vos ${sp(String(sw).replace('.',','))} semaines travaillées, et les montants par mois sont des moyennes sur l’année.</span>`}
   const row=(l,v,cls)=>`<div class="sr ${cls||''}"><span>${l}</span><b>${v}</b></div>`;
-  $('#simR').innerHTML=row(`Leçons hors TVA (${hh(hs*WK)} par mois${c.vac?' en moyenne':''})`,eur(a.caL))+(a.bonus?row('Primes Ornikar (codes et réussites)','+ '+eur(a.bonus)):'')+row('Frais fixes','− '+eur(a.fixes))+row('Carburant','− '+eur(a.carb))+
+  $('#simR').innerHTML=row(`Leçons hors TVA (${hh(hs*WK)} par mois${c.vac?' en moyenne':''})`,eur(a.caL))+(a.bonus?row('Primes partenaire (codes et réussites)','+ '+eur(a.bonus)):'')+row('Frais fixes','− '+eur(a.fixes))+row('Carburant','− '+eur(a.carb))+
     row(`Cotisations sociales (${pct(c.cotis)})`,'− '+eur(a.cot))+(a.fis?row('Impôt et autres taxes','− '+eur(a.fis)):'')+row(c.are||c.per||c.treso?'Il vous reste de votre activité':'Il vous reste',(a.net<0?'− ':'')+eur(Math.abs(a.net)),'tot'+(a.net<0?' neg':''))+
     (c.are?row('Aide France Travail (ARE)','+ '+eur(a.are)):'')+(c.per?row('Épargne retraite (PER)','− '+eur(c.per)):'')+(c.treso?row('Trésorerie de l’entreprise','− '+eur(c.treso)):'')+(c.are||c.per||c.treso?row('Total du mois',(a.total<0?'− ':'')+eur(Math.abs(a.total)),'tot'+(a.total<0?' neg':'')):'');
   $('#tvaR').innerHTML=row('Vous facturez, TVA comprise',eur(a.ttc))+row('dont TVA facturée à 20 %',eur(a.tvaCol))+row('TVA récupérée sur vos frais','− '+eur(a.tvaRec))+

@@ -127,9 +127,11 @@ let C;try{C=JSON.parse(get(K))}catch(e){C=null}
 const save=()=>{C.updatedAt=Date.now();if(!set(K,JSON.stringify(C)))toast('Mémoire du téléphone pleine')};
 
 /* ---------- calculs ---------- */
+/* kilomètres par type de route : chiffres précisés par l’élève, le reste réparti à parts égales */
+function splitKm(x,k,r){const rk=x.rk||{},f=r.filter(q=>rk[q]!=null&&rk[q]!==''&&!isNaN(+rk[q])),u=r.filter(q=>!f.includes(q)),sf=f.reduce((a,q)=>a+(+rk[q]),0),rest=Math.max(0,k-sf);return[...f.map(q=>[q,+rk[q]]),...u.map(q=>[q,rest/u.length])]}
 function stats(){const t=C.trips,s={km:0,dur:0,n:t.length,nuit:0,pluie:0,routes:{ville:0,campagne:0,rapide:0},man:{}};
   t.forEach(x=>{const k=+x.km||0;s.km+=k;s.dur+=+x.dur||0;if((x.cond||[]).includes('nuit'))s.nuit+=k;if((x.cond||[]).some(c=>c==='pluie'||c==='brouillard'))s.pluie+=k;
-    const r=(x.routes||[]).filter(r=>r in s.routes);r.forEach(q=>s.routes[q]+=k/r.length);(x.man||[]).forEach(m=>s.man[m]=(s.man[m]||0)+1)});
+    const r=(x.routes||[]).filter(r=>r in s.routes);splitKm(x,k,r).forEach(([q,v])=>s.routes[q]+=v);(x.man||[]).forEach(m=>s.man[m]=(s.man[m]||0)+1)});
   s.obj=+C.profil.objectif||0;s.pct=s.obj?Math.min(100,s.km/s.obj*100):0;return s}
 
 /* ---------- premier lancement ---------- */
@@ -170,7 +172,7 @@ function homeView(){const s=stats(),p=C.profil;$('#fab').hidden=false;$('#setBtn
     <p class="muted" style="margin:8px 0 0;font-size:.85rem">Avant chaque rendez-vous, touchez « Envoyer à mon moniteur ».</p></div>`:''}
   <div class="acts" style="margin:0 0 12px"><button type="button" class="btn primary" data-send style="grid-column:1/-1">Envoyer à mon moniteur</button></div>
   <div class="block"><h2>Mes trajets</h2>${last.length?last.map(t=>`<button type="button" class="trip" data-trip="${esc(t.id)}"><span class="d">${esc(shortDate(t.date))}<small>${t.dur?hmin(t.dur):''}</small></span>
-    <span class="m"><b>${esc((t.routes||[]).map(r=>(ROUTES.find(x=>x[0]===r)||[,''])[1]).join(', ')||'Trajet')}</b><small>${t.note?`<span style="color:#E0A12E" aria-label="${t.note} sur 5">${'★'.repeat(t.note)}</span> `:''}${esc([t.acc,...(t.cond||[]).map(c=>(CONDS.find(x=>x[0]===c)||[,''])[1])].filter(Boolean).join(' · '))}</small></span>
+    <span class="m"><b>${esc((t.routes||[]).map(r=>(ROUTES.find(x=>x[0]===r)||[,''])[1]+(t.rk&&t.rk[r]!=null?` ${nkm(t.rk[r])} km`:'')).join(', ')||'Trajet')}</b><small>${t.note?`<span style="color:#E0A12E" aria-label="${t.note} sur 5">${'★'.repeat(t.note)}</span> `:''}${esc([t.acc,...(t.cond||[]).map(c=>(CONDS.find(x=>x[0]===c)||[,''])[1])].filter(Boolean).join(' · '))}</small></span>
     <span class="k">${nkm(t.km)} km</span></button>`).join(''):'<p class="empty">Aucun trajet pour l’instant.<br>Touchez « Nouveau trajet » après votre première conduite.</p>'}</div>`}
 /* rendez-vous pédagogiques (conduite accompagnée) : le 1er à 1 500 km ou au bout de 6 mois, le 2e à 3 000 km */
 function addMonths(iso,n){const d=new Date((iso||todayISO())+'T12:00');const day=d.getDate();d.setMonth(d.getMonth()+n);if(d.getDate()<day)d.setDate(0);return d.toISOString().slice(0,10)}
@@ -186,6 +188,16 @@ function tripSheet(id){const t=id?C.trips.find(x=>x.id===id):null,p=C.profil;
   const lastArr=[...C.trips].filter(x=>x.arr).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id))[0];
   const d=t?JSON.parse(JSON.stringify(t)):{id:null,date:todayISO(),km:'',dur:null,dep:lastArr?lastArr.arr:'',arr:'',mode:C.lastMode||'km',routes:[],cond:[],man:[],acc:(p.accomp||[])[0]||'',note:0,com:''};
   if(!d.mode)d.mode=d.dep||d.arr?'cpt':'km';
+  if(!d.rk)d.rk={};
+  const curKm=()=>d.mode==='cpt'?((+d.arr)-(+d.dep)):+String(d.km||'').replace(',','.');
+  const rkHint=()=>{const sel=ROUTES.filter(([v])=>d.routes.includes(v)),f=sel.filter(([v])=>String(d.rk[v]??'').trim()!==''),u=sel.filter(x=>!f.includes(x)),tot=curKm(),sum=f.reduce((a,[v])=>a+(+String(d.rk[v]).replace(',','.')||0),0);
+    if(!f.length)return 'Sans précision, les kilomètres sont répartis à parts égales.';
+    if(!(tot>0))return `Précisé : ${nkm(sum)} km.`;
+    if(sum>tot+0.05)return `<b style="color:#C0333A">${nkm(sum)} km précisés pour un trajet de ${nkm(tot)} km : vérifiez les chiffres.</b>`;
+    if(!u.length)return Math.abs(sum-tot)>0.05?`<b style="color:#C0333A">Total : ${nkm(sum)} km, alors que le trajet fait ${nkm(tot)} km.</b>`:`Total : ${nkm(sum)} km, c’est bon.`;
+    return `Précisé : ${nkm(sum)} km sur ${nkm(tot)} km. Le reste (${nkm(tot-sum)} km) va à : ${u.map(x=>x[1].replace(' / autoroute','')).join(', ')}.`};
+  const rkHTML=()=>{const sel=ROUTES.filter(([v])=>d.routes.includes(v));if(sel.length<2)return '';
+    return `<p class="muted" style="margin:8px 0 4px;font-size:.88rem">Si vous le savez, précisez les kilomètres de chaque type de route (facultatif) :</p><div class="grid">${sel.map(([v,l])=>`<label class="f">${esc(l.replace(' / autoroute',''))} (km)<input type="text" data-rk="${v}" inputmode="decimal" autocomplete="off" value="${esc(d.rk[v]??'')}" placeholder="km"></label>`).join('')}</div><p class="muted" data-rkhint style="margin:4px 0 0;font-size:.85rem">${rkHint()}</p>`};
   const el=document.createElement('div');el.className='shm';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');
   const seg=(k,opts,multi)=>`<div class="seg${multi?' multi':''}" data-f="${k}" ${multi?'data-multi':''}>${opts.map(([v,l])=>`<button type="button" data-v="${esc(v)}" aria-pressed="${multi?d[k].includes(v):d[k]===v}">${esc(l)}</button>`).join('')}</div>`;
   const paint=()=>{el.querySelector('.shm-in').innerHTML=`<div class="shm-h"><b>${t?'Modifier le trajet':'Nouveau trajet'}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
@@ -193,10 +205,10 @@ function tripSheet(id){const t=id?C.trips.find(x=>x.id===id):null,p=C.profil;
     <label class="f">Durée (minutes)<input type="number" data-in="dur" inputmode="numeric" min="0" value="${esc(d.dur??'')}" placeholder="Ex. : 45"></label></div>
     <div class="chips" style="margin-top:6px">${[15,30,45,60,90,120].map(m=>`<button type="button" data-dur="${m}" aria-pressed="${+d.dur===m}">${hmin(m)}</button>`).join('')}</div>
     <div class="lab">Kilomètres</div>${seg('mode',[['km','Distance'],['cpt','Compteur départ / arrivée']])}
-    <div class="grid" style="margin-top:8px">${d.mode==='km'?`<label class="f full">Distance parcourue (km)<input type="number" data-in="km" inputmode="decimal" min="0" step="0.1" value="${esc(d.km)}" placeholder="Ex. : 32"></label>`:
+    <div class="grid" style="margin-top:8px">${d.mode==='km'?`<label class="f full">Distance parcourue (km)<input type="text" data-in="km" inputmode="decimal" autocomplete="off" value="${esc(d.km)}" placeholder="Ex. : 32"></label>`:
       `<label class="f">Compteur au départ<input type="number" data-in="dep" inputmode="numeric" min="0" value="${esc(d.dep)}"></label><label class="f">Compteur à l’arrivée<input type="number" data-in="arr" inputmode="numeric" min="0" value="${esc(d.arr)}"></label>
       <p class="muted full" style="margin:0;font-size:.88rem" data-kmcalc>${+d.arr>+d.dep?`Distance : <b>${nkm(d.arr-d.dep)} km</b>`:'La distance se calcule toute seule.'}</p>`}</div>
-    <div class="lab">Type de route <span style="font-weight:400">(plusieurs choix possibles)</span></div>${seg('routes',ROUTES,true)}
+    <div class="lab">Type de route <span style="font-weight:400">(plusieurs choix possibles)</span></div>${seg('routes',ROUTES,true)}<div data-rkbox>${rkHTML()}</div>
     <div class="lab">Conditions</div>${seg('cond',CONDS,true)}
     <div class="lab">Manœuvres</div>${seg('man',MANS.map(m=>[m,m]),true)}
     <div class="lab">Accompagnateur</div>${(p.accomp||[]).length?seg('acc',p.accomp.map(a=>[a,a])):`<input type="text" data-in="acc" value="${esc(d.acc)}" placeholder="Nom de l’accompagnateur">`}
@@ -205,7 +217,8 @@ function tripSheet(id){const t=id?C.trips.find(x=>x.id===id):null,p=C.profil;
     <div class="row2"><button type="button" class="btn primary" data-save>Enregistrer le trajet</button>${t?'<button type="button" class="btn quiet" data-del style="color:#C0333A">Supprimer</button>':''}</div>`};
   el.innerHTML='<div class="shm-in"></div>';paint();document.body.appendChild(el);sheet=el;document.documentElement.style.overflow='hidden';
   const close=()=>{el.remove();sheet=null;document.documentElement.style.overflow=''};
-  el.addEventListener('input',e=>{const k=e.target.dataset.in;if(!k)return;d[k]=e.target.value;
+  const rkRefresh=()=>{const h=el.querySelector('[data-rkhint]');if(h)h.innerHTML=rkHint()};
+  el.addEventListener('input',e=>{if(e.target.dataset.rk){d.rk[e.target.dataset.rk]=e.target.value;rkRefresh();return}const k=e.target.dataset.in;if(!k)return;d[k]=e.target.value;if(k==='km'||k==='dep'||k==='arr')rkRefresh();
     if(k==='dep'||k==='arr'){const c=el.querySelector('[data-kmcalc]');if(c)c.innerHTML=+d.arr>+d.dep?`Distance : <b>${nkm(d.arr-d.dep)} km</b>`:'La distance se calcule toute seule.'}
     if(k==='dur')el.querySelectorAll('[data-dur]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.dur===+d.dur))});
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(e.target===el){close();return}if(!b)return;
@@ -213,15 +226,21 @@ function tripSheet(id){const t=id?C.trips.find(x=>x.id===id):null,p=C.profil;
     if(b.dataset.dur){d.dur=+b.dataset.dur;el.querySelector('[data-in="dur"]').value=d.dur;el.querySelectorAll('[data-dur]').forEach(x=>x.setAttribute('aria-pressed',x===b));return}
     if(b.dataset.star){const n=+b.dataset.star;d.note=d.note===n?0:n;el.querySelectorAll('[data-star]').forEach(x=>x.classList.toggle('on',+x.dataset.star<=d.note));return}
     const g=b.closest('[data-f]');if(g){const k=g.dataset.f,v=b.dataset.v;
-      if(g.hasAttribute('data-multi')){const i=d[k].indexOf(v);i>=0?d[k].splice(i,1):d[k].push(v);b.setAttribute('aria-pressed',d[k].includes(v))}
+      if(g.hasAttribute('data-multi')){const i=d[k].indexOf(v);i>=0?d[k].splice(i,1):d[k].push(v);b.setAttribute('aria-pressed',d[k].includes(v));if(k==='routes'){const bx=el.querySelector('[data-rkbox]');if(bx)bx.innerHTML=rkHTML()}}
       else{d[k]=v;if(k==='mode'){paint();return}g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))}return}
     if(b.dataset.del!=null){if(!confirm('Supprimer ce trajet ?'))return;C.trips=C.trips.filter(x=>x.id!==t.id);save();close();render();toast('Trajet supprimé');return}
     if(b.dataset.save!=null){let km=d.mode==='cpt'?(+d.arr)-(+d.dep):+String(d.km).replace(',','.');
       if(d.mode==='cpt'&&(!d.arr||!d.dep||!(km>0))){toast('Vérifiez les compteurs : l’arrivée doit être plus grande que le départ');return}
       if(!(km>0)){toast('Indiquez la distance parcourue');return}
       if(km>1500){toast('Distance trop grande : vérifiez le chiffre');return}
-      const rec={id:t?t.id:newId(),date:d.date||todayISO(),km:Math.round(km*10)/10,dur:d.dur===''||d.dur==null?null:+d.dur,dep:d.mode==='cpt'?+d.dep:null,arr:d.mode==='cpt'?+d.arr:null,mode:d.mode,
-        routes:d.routes,cond:d.cond,man:d.man,acc:(d.acc||'').trim(),note:d.note||0,com:(d.com||'').trim()};
+      const kmR=Math.round(km*10)/10,sel=ROUTES.map(x=>x[0]).filter(q=>d.routes.includes(q));let rk=null;
+      if(sel.length>=2){const f=sel.filter(q=>String(d.rk[q]??'').trim()!=='');
+        if(f.length){rk={};for(const q of f){const v=+String(d.rk[q]).replace(',','.');if(!(v>=0)){toast('Vérifiez les kilomètres par type de route');return}rk[q]=Math.round(v*10)/10}
+          const sum=Math.round(Object.values(rk).reduce((a,b)=>a+b,0)*10)/10;
+          if(sum>kmR+0.05){toast(`Les kilomètres par type de route (${nkm(sum)} km) dépassent la distance du trajet (${nkm(kmR)} km)`);return}
+          if(f.length===sel.length&&Math.abs(sum-kmR)>0.05){toast(`Le total par type de route (${nkm(sum)} km) doit être égal à la distance du trajet (${nkm(kmR)} km)`);return}}}
+      const rec={id:t?t.id:newId(),date:d.date||todayISO(),km:Math.round(km*10)/10,dur:d.dur===''||d.dur==null||isNaN(+d.dur)?null:Math.max(0,+d.dur),dep:d.mode==='cpt'?+d.dep:null,arr:d.mode==='cpt'?+d.arr:null,mode:d.mode,
+        routes:d.routes,rk,cond:d.cond,man:d.man,acc:(d.acc||'').trim(),note:d.note||0,com:(d.com||'').trim()};
       if(t)Object.assign(t,rec);else C.trips.push(rec);C.lastMode=d.mode;save();close();render();window.scrollTo(0,0);toast(`Trajet enregistré : ${nkm(rec.km)} km`)}});
   el.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 }
@@ -273,7 +292,7 @@ async function build(){const c=await summaryCanvas(),blob=await new Promise(r=>c
   return{img,text}}
 function prepare(){prepAt=Date.now();prep=build();prep.catch(()=>{prep=null})}
 async function send(btn){const lab=btn.textContent;btn.disabled=true;btn.textContent='Préparation…';
-  try{if(!prep||Date.now()-prepAt>60000)prepare();const{img,text}=await prep;
+  try{if(!prep||Date.now()-prepAt>60000||prepAt<(C.updatedAt||0))prepare();const{img,text}=await prep;
     const withImg=navigator.canShare&&navigator.canShare({files:[img]});
     try{if(withImg)await navigator.share({files:[img],text});else if(navigator.share)await navigator.share({text});else throw new Error('no share');toast('Carnet envoyé')}
     catch(e){if(e&&e.name==='AbortError')return;

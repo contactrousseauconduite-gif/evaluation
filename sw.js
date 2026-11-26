@@ -1,6 +1,6 @@
-const CACHE = 'rc-eval-v72';
+const CACHE = 'rc-eval-v74';
 const FONTS = 'rc-fonts-v1';
-const SHELL = ['./', './index.html', './evaluation.html', './bilan.html', './examen.html', './eleves.html', './vehicule.html', './budget.html', './tableau.html', './questions.html', './questions.js', './les-100-questions.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png', './memo-page-1.jpg', './memo-page-2.jpg', './questions-page-01.jpg', './questions-page-02.jpg', './questions-page-03.jpg', './questions-page-04.jpg', './questions-page-05.jpg', './questions-page-06.jpg', './questions-page-07.jpg', './questions-page-08.jpg', './questions-page-09.jpg', './questions-page-10.jpg', './questions-page-11.jpg', './donnees-page-1.jpg', './parrainage-vjtz-v2.jpg', './parrainage-vjtz-v2.pdf', './presentation-rousseau-conduite-v2.pdf', './presentation-v2-page-1.jpg', './presentation-v2-page-2.jpg', './presentation-v2-page-3.jpg'];
+const SHELL = ['./', './index.html', './evaluation.html', './bilan.html', './examen.html', './eleves.html', './vehicule.html', './budget.html', './tableau.html', './questions.html', './questions.js', './les-100-questions-v2.pdf', './manifest.webmanifest', './memo-verifications-premiers-secours-v2.pdf', './vos-donnees-personnelles.pdf', './icon-192.png', './icon-512.png', './icon-maskable-v2.png', './memo-v2-page-1.jpg', './memo-v2-page-2.jpg', './questions-v2-page-01.jpg', './questions-v2-page-02.jpg', './questions-v2-page-03.jpg', './questions-v2-page-04.jpg', './questions-v2-page-05.jpg', './questions-v2-page-06.jpg', './questions-v2-page-07.jpg', './questions-v2-page-08.jpg', './questions-v2-page-09.jpg', './questions-v2-page-10.jpg', './questions-v2-page-11.jpg', './donnees-page-1.jpg', './parrainage-vjtz-v3.jpg', './parrainage-vjtz-v3.pdf', './presentation-rousseau-conduite-v3.pdf', './presentation-v3-page-1.jpg', './presentation-v3-page-2.jpg', './presentation-v3-page-3.jpg'];
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700;800&display=swap';
 const isFont = url => url.startsWith('https://fonts.googleapis.com/') || url.startsWith('https://fonts.gstatic.com/');
 
@@ -18,7 +18,8 @@ async function cacheFonts() {
 }
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => cacheFonts()).then(() => self.skipWaiting()));
+  // Chaque fichier est mis en cache séparément : un fichier manquant n'empêche plus la mise à jour.
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => null)))).then(() => cacheFonts()).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -30,7 +31,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // Autres sites (agenda Ornikar…) : toujours en direct, jamais gardés en cache.
+  // Autres sites (agenda en ligne…) : toujours en direct, jamais gardés en cache.
   if (new URL(req.url).origin !== self.location.origin && !isFont(req.url)) return;
 
   // Polices : d'abord celles enregistrées sur l'appareil, sinon internet (puis on les garde).

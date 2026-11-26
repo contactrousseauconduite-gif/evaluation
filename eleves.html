@@ -351,6 +351,8 @@ a.card{text-decoration:none;color:inherit}
 <div id="view"></div></main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
+const deN=n=>{n=String(n||'').trim();return /^[aeiouyàâäéèêëîïôöùûüAEIOUYÀÂÄÉÈÊËÎÏÔÖÙÛÜ]/.test(n)?'d’'+n:'de '+n};
+
 /* Rousseau Conduite : données communes (élèves, sauvegarde) */
 window.RC=(function(){
   const K={ev:'rc-eval:history',ex:'rc-exam:history',bi:'rc-bilan:history',ve:'rc:vehicule',de:'rc:dessins',ca:'rc:carnets',sg:'rc:signes',hr:'rc:heures',bu:'rc:budget',dl:'rc:supprimes',el:'rc:eleves',last:'rc:lastBackup',snooze:'rc:backupSnooze'};
@@ -384,14 +386,16 @@ window.RC=(function(){
     /* garder les noms des fiches à jour */
     [K.ev,K.ex,K.bi].forEach(k=>{const r=list(k);let ch=false;r.forEach(x=>{if(x.eleveId===id){['nom','prenom'].forEach(f=>{if(patch[f]!=null&&x[f]!==patch[f]){x[f]=patch[f];ch=true}})}});if(ch)set(k,JSON.stringify(r))})}
   function deleteEleve(id){saveEleves(eleves().filter(e=>e.id!==id));
-    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg,K.hr].forEach(k=>set(k,JSON.stringify(list(k).filter(x=>x.eleveId!==id))))}
+    const g=new Set(list(K.dl));g.add(id);
+    [K.ev,K.ex,K.bi,K.de,K.ca,K.sg,K.hr].forEach(k=>{const l=list(k);l.filter(x=>x.eleveId===id&&x.id).forEach(x=>g.add(x.id));set(k,JSON.stringify(l.filter(x=>x.eleveId!==id)))});
+    set(K.dl,JSON.stringify([...g].slice(-4000)))}
   const carnet=id=>list(K.ca).find(x=>x.eleveId===id)||null;
   function saveCarnet(eleveId,d){const l=list(K.ca).filter(x=>x.eleveId!==eleveId),rec={id:'c-'+eleveId,v:1,eleveId,profil:d.profil||{},trips:Array.isArray(d.trips)?d.trips:[],exportedAt:d.exportedAt||Date.now(),updatedAt:Date.now()};l.push(rec);set(K.ca,JSON.stringify(l));return rec}
   function syncAll(){[K.ev,K.ex,K.bi].forEach(k=>{const recs=list(k);let ch=false;
     [...recs].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(r=>{if(!r.eleveId&&(r.nom||r.prenom)){r.eleveId=link(r);ch=true}});
     if(ch)set(k,JSON.stringify(recs))})}
-  /* ---------- heures réalisées, d'après l'agenda Ornikar ---------- */
-  /* Chaque leçon passée de l'agenda est gardée dans un journal : elle reste comptée même quand Ornikar la retire du fichier. */
+  /* ---------- heures réalisées, d'après l'agenda en ligne ---------- */
+  /* Chaque leçon passée de l'agenda est gardée dans un journal : elle reste comptée même quand elle disparaît du fichier. */
   function icsEvents(text){const un=[];String(text||'').replace(/\r\n?/g,'\n').split('\n').forEach(l=>{if(/^[ \t]/.test(l)&&un.length)un[un.length-1]+=l.slice(1);else un.push(l)});
     const pd=v=>{const m=(v||'').match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/);if(!m)return null;const[,y,mo,d,h='0',mi='0',ss='0',z]=m;return z?new Date(Date.UTC(+y,+mo-1,+d,+h,+mi,+ss)):new Date(+y,+mo-1,+d,+h,+mi,+ss)};
     const ev=[];let c=null;un.forEach(l=>{if(l==='BEGIN:VEVENT'){c={};return}if(l==='END:VEVENT'){if(c&&c.start)ev.push(c);c=null;return}if(!c)return;const i=l.indexOf(':');if(i<0)return;
@@ -555,13 +559,13 @@ window.RC=(function(){
   }
   function closeShare(){if(shm){shm.remove();shm=null;document.documentElement.style.overflow=''}}
   const pages=(b,n,pad)=>Array.from({length:n},(_,i)=>`${b}-${pad?String(i+1).padStart(2,'0'):i+1}.jpg`);
-  const DOCS=[{url:'presentation-rousseau-conduite-v2.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-v2-page',3),
+  const DOCS=[{url:'presentation-rousseau-conduite-v3.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-v3-page',3),
      text:'Bonjour,\n\nComme convenu au téléphone, voici ma présentation et les étapes pour vous inscrire. Vous y trouverez aussi les points de rendez-vous et les liens utiles.\n\nN’hésitez pas à me contacter si vous avez la moindre question.\n\nFabien\nRousseau Conduite'},
-    {url:'memo-verifications-premiers-secours.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-page',2)},
-    {url:'les-100-questions.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-page',11,true)},
+    {url:'memo-verifications-premiers-secours-v2.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-v2-page',2)},
+    {url:'les-100-questions-v2.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-v2-page',11,true)},
     {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à faire signer lors de l’évaluation de départ',jpg:pages('donnees-page',1),sign:true},
-    {url:'parrainage-vjtz-v2.pdf',title:'Code parrainage VJTZ',sub:'Jusqu’à 100 € de réduction sur le permis Ornikar',jpg:['parrainage-vjtz-v2.jpg'],
-     text:'Bonjour ! Voici mon code parrainage Ornikar : VJTZ. Il vous permet d’avoir jusqu’à 100 € de réduction sur votre permis : créez votre compte sur ornikar.com, choisissez votre formule permis et saisissez le code VJTZ au moment du paiement.\n\nFabien\nRousseau Conduite'}];
+    {url:'parrainage-vjtz-v3.pdf',title:'Code parrainage VJTZ',sub:'Jusqu’à 100 € de réduction sur le permis',jpg:['parrainage-vjtz-v3.jpg'],
+     text:'Bonjour ! Voici mon code parrainage : VJTZ. Il vous permet d’avoir jusqu’à 100 € de réduction sur votre permis : lors de votre inscription en ligne, choisissez votre formule permis et saisissez le code VJTZ au moment du paiement.\n\nFabien\nRousseau Conduite'}];
 
   /* ---------- fiche en PDF (sans bibliothèque externe) ---------- */
   const A4W=794,PAD=38,INNER=A4W-2*PAD;
@@ -815,7 +819,7 @@ window.RC=(function(){
     /* heures de la semaine non renseignées : le carburant est un montant fixe par semaine travaillée */
     const carbMT=hsW>0?0:num(b.carbSem)*WK,carbM=carbMT/(b.carbTva?1.2:1);
     const per=Math.max(0,num(b.per)),treso=Math.max(0,num(b.treso));
-    /* primes Ornikar (codes promo utilisés, élèves reçus du premier coup) : chiffre d'affaires hors TVA en plus des leçons */
+    /* primes partenaire (codes promo utilisés, élèves reçus du premier coup) : chiffre d'affaires hors TVA en plus des leçons */
     const bonus=Math.max(0,num(b.codes))*num(b.codePrix)+Math.max(0,num(b.reuss))*num(b.reussPrix),bonusNet=bonus*(1-c);
     /* primes comptées dès la première leçon du mois : au moins une demi-heure si elles suffisent à elles seules */
     const need=net=>{if(marge<=0)return null;const n=(F+carbM+net-bonusNet)/marge;return n>0?n:bonusNet>0?0.5:0};
@@ -828,7 +832,7 @@ window.RC=(function(){
     const obj=num(b.objectif);let objAre=null;if(A>0&&taux>0)for(let h=0;h<=400;h+=.5)if(at(h).total>=obj){objAre=h;break}
     const objH0=need(obj+per+treso),objM=obj>0&&A>0&&objAre!=null&&(objH0==null||objAre<objH0)?objAre:objH0;
     return{objM,vacSaisi,vac,per,treso,carbM,carbFixe:hsW<=0,are:A,areFinCA,bonus,areFinH:areFinCA!=null&&taux>0?Math.max(0,areFinCA-bonus)/taux:null,objAre,taux,F,v,c,cotis:cr,acre:acreOn(b),marge,WK,seuilH:need(0),objH:need(num(b.objectif)+per+treso),objectif:num(b.objectif),need,at}}
-  /* heures du mois en cours d'après l'agenda Ornikar : faites et encore prévues */
+  /* heures du mois en cours d'après l'agenda en ligne : faites et encore prévues */
   function monthHours(){const now=new Date(),y=now.getFullYear(),m=now.getMonth(),t=now.getTime();let done=0,plan=0;const seen=new Set(),off=new Set(list(K.hr).filter(x=>x.off).map(x=>x.id));
     try{icsEvents(get('rc:ics:data')||'').forEach(ev=>{const end=ev.end||new Date(ev.start.getTime()+36e5);if(ev.start.getFullYear()!==y||ev.start.getMonth()!==m)return;
       const h=Math.max(0,(end-ev.start)/36e5),id='h-'+(ev.uid||'')+'-'+ev.start.getTime();if(off.has(id)){seen.add(id);return}if(end.getTime()<=t){done+=h;seen.add(id)}else plan+=h})}catch(e){}
@@ -846,7 +850,7 @@ window.RC=(function(){
     if(!last){r.used=0;r.state='none';return r}
     const el=Math.max(0,dayOf(last.date)-s0);r.used=last.km-dep;r.expected=expAt(last.date);r.ecart=r.used-r.expected;
     r.state=r.ecart<=allow*.03?'ok':r.ecart<=allow*.07?'warn':'over';
-    if(el>=14){r.rateDay=r.used/el;r.perMonth=r.rateDay*30.44;r.projected=Math.round(r.rateDay*tot);r.over=Math.max(0,r.projected-allow);r.cost=c.prix?r.over*(+String(c.prix).replace(',','.')):null}
+    if(el>=14){r.rateDay=r.used/el;r.perMonth=r.rateDay*30.44;r.projected=Math.round(r.rateDay*tot);r.over=Math.max(0,r.projected-allow);r.cost=num(String(c.prix||'').replace(/[^0-9,.]/g,''))?r.over*num(String(c.prix).replace(/[^0-9,.]/g,'')):null}
     if(r.projected!=null)r.state=r.projected<=allow?'ok':r.projected<=allow*1.05?'warn':'over';
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
@@ -857,6 +861,7 @@ window.RC=(function(){
 })();
 </script>
 <script>
+
 (function(){
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -933,7 +938,7 @@ function renderDossier(id){
     <button type="button" class="btn sec" id="msgBtn">Envoyer un message</button><button type="button" class="btn sec" id="memoBtn">Partager un document</button></div>
 
   <div class="tiles">
-    <button type="button" class="tile tbtn" id="pBtn"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&+prev>0?`<small class="tx">Fourchette ${Math.max(25,Math.floor(+prev/5)*5)} à ${Math.max(25,Math.floor(+prev/5)*5)+4} h</small>`:''}${prev!=null&&pEx?`<small class="tx">+ ${pEx} h pour l’examen pratique${pEx>=2?', accompagnement compris':''}</small>`:''}<small>${pm?'Saisie à la main · modifier':prev!=null?'Modifier':'Saisir à la main'}</small></button>
+    <button type="button" class="tile tbtn" id="pBtn"><span>Pratique prévue</span><b>${prev!=null?String(prev).replace('.',',')+' h':'–'}</b>${prev!=null&&+prev>=25?`<small class="tx">Fourchette ${Math.max(25,Math.floor(+prev/5)*5)} à ${Math.max(25,Math.floor(+prev/5)*5)+4} h</small>`:''}${prev!=null&&pEx?`<small class="tx">+ ${pEx} h pour l’examen pratique${pEx>=2?', accompagnement compris':''}</small>`:''}<small>${pm?'Saisie à la main · modifier':prev!=null?'Modifier':'Saisir à la main'}</small></button>
     ${(()=>{const H=RC.heures(e.id),ag=H.lecons.length>0||H.adj!==0;
       return `<button type="button" class="tile tbtn" id="hBtn"><span>Heures effectuées</span><b>${ag?fmtH(H.total):lastH!=null?esc(String(lastH).replace('.',','))+' h':'–'}</b><small>${ag?`${H.n} leçon${H.n>1?'s':''} · détail`:'Voir le détail'}</small></button>`})()}
     <div class="tile"><span>Examens blancs réussis</span><b>${d.ex.length?`${ok} sur ${d.ex.length}`:'–'}</b></div>
@@ -946,7 +951,7 @@ function renderDossier(id){
   </section>`}
 
   ${d.bi.length?`<section class="block"><h2 class="pill">Bilan de compétences</h2>
-    ${[...d.bi].reverse().map(x=>{const r=x.result||{};return `<div class="rowd"><a class="row2" href="bilan.html?open=${esc(x.id)}"><div><b>${esc(frDate(x.date))}${x.precedente?`, venant de ${esc(x.precedente)}`:''}</b><span>${r.ac!=null?`${r.ac} objectifs acquis sur ${r.total}`:'À compléter'}${r.reprise?`, reprise en ${r.reprise}`:r.ac!=null&&r.ac===r.total?', tout est acquis':''}</span></div><div class="sc"><b>${r.heuresPlus!=null?'+'+String(r.heuresPlus).replace('.',',')+'<small> h</small>':'–'}</b><span>à prévoir</span></div></a><button type="button" class="rdel" data-rdel="bi:${esc(x.id)}" aria-label="Supprimer ce bilan">✕</button></div>`}).join('')}
+    ${[...d.bi].reverse().map(x=>{const r=x.result||{};return `<div class="rowd"><a class="row2" href="bilan.html?open=${esc(x.id)}"><div><b>${esc(frDate(x.date))}${x.precedente?`, venant ${esc(deN(x.precedente))}`:''}</b><span>${r.ac!=null?`${r.ac} objectifs acquis sur ${r.total}`:'À compléter'}${r.reprise?`, reprise en ${r.reprise}`:r.ac!=null&&r.ac===r.total?', tout est acquis':''}</span></div><div class="sc"><b>${r.heuresPlus!=null?'+'+String(r.heuresPlus).replace('.',',')+'<small> h</small>':'–'}</b><span>à prévoir</span></div></a><button type="button" class="rdel" data-rdel="bi:${esc(x.id)}" aria-label="Supprimer ce bilan">✕</button></div>`}).join('')}
   </section>`:''}
 
   <section class="block"><h2 class="pill">Examens blancs</h2>
@@ -963,7 +968,7 @@ function renderDossier(id){
     ${d.de.length?`<div class="schg">${[...d.de].reverse().map(x=>`<div class="schw"><a class="scht" href="tableau.html?open=${esc(x.id)}"><img src="${x.thumb}" alt=""><b>${esc(x.title||'Schéma')}</b><small>${esc(frDate(x.date))}</small></a><button type="button" class="rdel ov" data-rdel="de:${esc(x.id)}" aria-label="Supprimer le schéma ${esc(x.title||'')}">✕</button></div>`).join('')}</div>`:
     `<p class="empty2">Pas encore de schéma. Dessinez-en un sur le tableau et enregistrez-le dans ce dossier.</p>`}
   </section>
-  <button type="button" class="danger" id="delBtn">Supprimer le dossier de ${esc(RC.full(e))}</button>`;
+  <button type="button" class="danger" id="delBtn">Supprimer le dossier ${esc(deN(RC.full(e)))}</button>`;
   if(d.ex.length)drawChart(d.ex);
 }
 
@@ -1005,12 +1010,13 @@ const CR_ROUTES=[['ville','Ville','cr-v'],['campagne','Campagne','cr-c'],['rapid
 const CR_FORM={aac:'Conduite accompagnée',cs:'Conduite supervisée',autre:'Conduite avec accompagnateur'};
 const nkm=n=>Math.round(n||0).toLocaleString('fr-FR').replace(/ | /g,' ');
 const hmin=m=>{m=Math.round(m||0);const h=Math.floor(m/60),r=m%60;return h?`${h} h${r?' '+String(r).padStart(2,'0'):''}`:`${r} min`};
+function splitKm(x,k,r){const rk=x.rk||{},f=r.filter(q=>rk[q]!=null&&rk[q]!==''&&!isNaN(+rk[q])),u=r.filter(q=>!f.includes(q)),sf=f.reduce((a,q)=>a+(+rk[q]),0),rest=Math.max(0,k-sf);return[...f.map(q=>[q,+rk[q]]),...u.map(q=>[q,rest/u.length])]}
 function crStats(c){const s={km:0,dur:0,n:c.trips.length,nuit:0,pluie:0,routes:{ville:0,campagne:0,rapide:0},man:{},last:''};
   c.trips.forEach(t=>{const k=+t.km||0;s.km+=k;s.dur+=+t.dur||0;const co=t.cond||[];if(co.includes('nuit'))s.nuit+=k;if(co.includes('pluie')||co.includes('brouillard'))s.pluie+=k;
-    const r=(t.routes||[]).filter(q=>q in s.routes);r.forEach(q=>s.routes[q]+=k/r.length);(t.man||[]).forEach(m=>s.man[m]=(s.man[m]||0)+1);if((t.date||'')>s.last)s.last=t.date});
+    const r=(t.routes||[]).filter(q=>q in s.routes);splitKm(t,k,r).forEach(([q,v])=>s.routes[q]+=v);(t.man||[]).forEach(m=>s.man[m]=(s.man[m]||0)+1);if((t.date||'')>s.last)s.last=t.date});
   s.obj=+(c.profil&&c.profil.objectif)||0;s.pct=s.obj?Math.min(100,s.km/s.obj*100):0;return s}
 function crRdv(p,km){const d=new Date((p.debut||new Date().toISOString().slice(0,10))+'T12:00'),day=d.getDate();d.setMonth(d.getMonth()+6);if(d.getDate()<day)d.setDate(0);
-  const d6=d.toISOString().slice(0,10),today=new Date().toISOString().slice(0,10);
+  const d6=d.toISOString().slice(0,10),today=(t=>{t.setMinutes(t.getMinutes()-t.getTimezoneOffset());return t.toISOString().slice(0,10)})(new Date());
   const r1=km>=1500||today>=d6?`<b>1er rendez-vous pédagogique à prévoir</b> (${km>=1500?'1 500 km atteints':'6 mois atteints'})`:`1er rendez-vous pédagogique à 1 500 km ou le ${esc(frDate(d6))}, encore ${nkm(1500-km)} km`;
   const r2=km>=3000?'<b>2e rendez-vous pédagogique à prévoir</b> (3 000 km atteints)':km>=1500?`2e rendez-vous pédagogique à 3 000 km, encore ${nkm(3000-km)} km`:'';
   return `<p class="cr-sub" style="margin-bottom:4px">${km>=3000?r2:r1+(r2?'<br>'+r2:'')}</p>`}
@@ -1018,7 +1024,7 @@ function signSection(e){const r=RC.signe(e.id);
   return `<section class="block"><div class="sch-h"><h2 class="pill">Données personnelles</h2>${r?'<button type="button" class="linkbtn" data-sg-new>Refaire signer</button>':''}</div>
     ${r?`<button type="button" class="row2 sg-row" data-sg-view style="width:100%;background:none;border-left:0;border-right:0;border-bottom:0;cursor:pointer;text-align:left;font:inherit"><div><b>Signé le ${esc(frDate(r.date))}</b><span>${esc(r.nom)}${r.minor?' et son représentant légal':''}</span></div><div class="sc"><b style="font-size:.95rem;color:var(--tealtext)">Voir</b></div></button><button type="button" class="linkbtn danger" data-rdel="sg:${esc(r.id)}" style="margin-top:6px">Supprimer ce document signé</button>`:
     `<p class="empty2">Le document « Vos données personnelles » n’est pas encore signé.</p><div class="cr-acts" style="grid-template-columns:1fr"><button type="button" class="btn primary" data-sg-new>Faire signer sur la tablette</button></div>`}</section>`}
-/* ---------- heures effectuées (agenda Ornikar + ajustement) ---------- */
+/* ---------- heures effectuées (agenda en ligne + ajustement) ---------- */
 const fmtH=h=>{const m=Math.max(0,Math.round(h*60)),H=Math.floor(m/60),r=m%60;return `${H} h${r?' '+String(r).padStart(2,'0'):''}`};
 function pratModal(id){const e=RC.eleve(id);if(!e)return;const d=dossier(e),le=d.ev[d.ev.length-1],lb=d.bi[d.bi.length-1];
   const auto=le&&evPrat(le)!=null?+evPrat(le):lb&&lb.result&&lb.result.heuresPlus!=null?+lb.result.totalH:null,pm=pratManu(e);
@@ -1044,15 +1050,15 @@ function heuresModal(id){const e=RC.eleve(id);if(!e)return;const box=document.cr
   const paint=()=>{const H=RC.heures(id),linked=!!localStorage.getItem('rc:ics:url');
     box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Heures effectuées</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
       <div class="hm-tot"><b>${fmtH(H.total)}</b><span>${esc(RC.full(e))}</span></div>
-      <p class="shm-note" style="margin:0">${H.n} leçon${H.n>1?'s':''} terminée${H.n>1?'s':''} d’après l’agenda Ornikar (${fmtH(H.min/60)})${H.adj?`, ${H.adj>0?'+':'−'} ${fmtH(Math.abs(H.adj))} ajoutées à la main`:''}.</p>
+      <p class="shm-note" style="margin:0">${H.n} leçon${H.n>1?'s':''} terminée${H.n>1?'s':''} d’après l’agenda en ligne (${fmtH(H.min/60)})${H.adj?`, ${H.adj>0?'+':'−'} ${fmtH(Math.abs(H.adj))} ${H.adj>0?'ajoutée':'retirée'}${Math.abs(H.adj)>=2?'s':''} à la main`:''}.</p>
       <div class="hm-adj"><span>Heures en plus<small>faites ailleurs ou absentes de l’agenda</small></span><div class="hm-st"><button type="button" class="btn" data-adj="-0.5" aria-label="Retirer une demi-heure">−</button><b>${H.adj>0?'+':H.adj<0?'−':''}${fmtH(Math.abs(H.adj))}</b><button type="button" class="btn" data-adj="0.5" aria-label="Ajouter une demi-heure">+</button></div></div>
       ${H.lecons.length?`<div class="hm-l">${H.lecons.map(x=>{const d=new Date(x.start);return `<div class="hm-r${x.off?' off':''}"><div><b>${esc(d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}))} · ${esc(d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))}</b><small>${esc(fmtH((x.min||0)/60))}${x.title?' · '+esc(x.title.replace(/\s+avec\s+.*$/,'')):''}</small></div><button type="button" class="linkbtn" data-off="${esc(x.id)}">${x.off?'Compter':'Ne pas compter'}</button></div>`}).join('')}</div>`:
-        `<p class="empty2">${linked?'Aucune leçon terminée trouvée dans l’agenda pour cet élève. Les leçons comptent une fois passées.':'Reliez l’agenda Ornikar (« Mes leçons » sur l’accueil) pour compter les leçons automatiquement.'}</p>`}
+        `<p class="empty2">${linked?'Aucune leçon terminée trouvée dans l’agenda pour cet élève. Les leçons comptent une fois passées.':'Reliez votre agenda en ligne (« Mes leçons » sur l’accueil) pour compter les leçons automatiquement.'}</p>`}
       <p class="shm-note" style="margin:0">Une leçon absente ou annulée tardivement ? Touchez « Ne pas compter ».</p></div>`};
   paint();document.body.appendChild(box);document.documentElement.style.overflow='hidden';
   const close=()=>{box.remove();document.documentElement.style.overflow='';renderDossier(id)};
   box.addEventListener('click',ev=>{const b=ev.target.closest('button');if(ev.target===box||(b&&b.dataset.x!=null)){close();return}if(!b)return;
-    if(b.dataset.adj){const cur=+RC.eleve(id).heuresAjust||0;RC.updateEleve(id,{heuresAjust:Math.round((cur+(+b.dataset.adj))*2)/2});paint();return}
+    if(b.dataset.adj){const cur=+RC.eleve(id).heuresAjust||0;RC.updateEleve(id,{heuresAjust:Math.max(-Math.floor(RC.heures(id).min/30)/2,Math.round((cur+(+b.dataset.adj))*2)/2)});paint();return}
     if(b.dataset.off){RC.toggleLecon(b.dataset.off);paint()}})}
 function carnetSection(e){const c=RC.carnet(e.id);
   const head=`<div class="sch-h"><h2 class="pill">Carnet de route</h2><button type="button" class="linkbtn" data-cr-send>Envoyer le carnet</button></div>`;
@@ -1072,7 +1078,7 @@ function carnetSection(e){const c=RC.carnet(e.id);
     <div class="cr-leg">${CR_ROUTES.map(([k,l,cl])=>`<span><i class="${cl}"></i>${l} : <b>${nkm(rt[k])} km</b></span>`).join('')}</div>`:''}
     ${mans.length?`<p class="cr-sub" style="margin-top:-4px">Manœuvres : ${esc(mans.map(([m,n])=>`${m} ×${n}`).join(', '))}</p>`:''}
     ${trips.length?`<h3 class="h3">Derniers trajets</h3>${trips.map(t=>`<div class="cr-trip"><div class="l1"><b>${esc(frDate(t.date))}${t.note?` <span class="cr-st" aria-label="${t.note} sur 5">${'★'.repeat(t.note)}</span>`:''}</b><b>${nkm(t.km)} km</b></div>
-      <small>${esc([(t.routes||[]).map(r=>(CR_ROUTES.find(x=>x[0]===r)||[,r])[1]).join(', '),t.dur?hmin(t.dur):'',(t.cond||[]).map(x=>({nuit:'nuit',pluie:'pluie',brouillard:'brouillard ou neige'})[x]||x).join(', '),t.acc?'avec '+t.acc:''].filter(Boolean).join(' · '))}</small>
+      <small>${esc([(t.routes||[]).map(r=>(CR_ROUTES.find(x=>x[0]===r)||[,r])[1]+(t.rk&&t.rk[r]!=null?` ${nkm(t.rk[r])} km`:'')).join(', '),t.dur?hmin(t.dur):'',(t.cond||[]).map(x=>({nuit:'nuit',pluie:'pluie',brouillard:'brouillard ou neige'})[x]||x).join(', '),t.acc?'avec '+t.acc:''].filter(Boolean).join(' · '))}</small>
       ${t.com?`<q>${esc(t.com)}</q>`:''}</div>`).join('')}`:'<p class="empty2">Aucun trajet noté pour l’instant.</p>'}
     <div class="cr-acts"><button type="button" class="btn" data-cr-imp>Importer une mise à jour</button><button type="button" class="btn" data-cr-send>Renvoyer le lien</button></div>${inp}</section>`}
 function carnetSend(e){const T=RC.T,p=e.prenom||'';
@@ -1091,13 +1097,13 @@ async function carnetImport(e,file){let d;try{d=JSON.parse(await file.text())}ca
 async function carnetImportData(e,d){
   if(!d||d.app!=='rc-carnet'||!Array.isArray(d.trips)){toast(d&&d.app==='rousseau-conduite'?'C’est une sauvegarde de l’appli, pas un carnet de route':'Ce fichier n’est pas un carnet de route');return}
   const p=d.profil||{};
-  if(p.eleveId&&p.eleveId!==e.id){const o=RC.eleve(p.eleveId);if(!confirm(`Ce carnet a été envoyé à ${o?RC.full(o):'un autre élève'}. L’importer quand même dans le dossier de ${RC.full(e)} ?`))return}
-  else if(!p.eleveId&&p.prenom&&e.prenom&&RC.norm(p.prenom)!==RC.norm(e.prenom)&&!confirm(`Ce carnet est au nom de ${[p.prenom,p.nom].filter(Boolean).join(' ')}. L’importer dans le dossier de ${RC.full(e)} ?`))return;
+  if(p.eleveId&&p.eleveId!==e.id){const o=RC.eleve(p.eleveId);if(!confirm(`Ce carnet a été envoyé à ${o?RC.full(o):'un autre élève'}. L’importer quand même dans le dossier ${deN(RC.full(e))} ?`))return}
+  else if(!p.eleveId&&p.prenom&&e.prenom&&RC.norm(p.prenom)!==RC.norm(e.prenom)&&!confirm(`Ce carnet est au nom de ${[p.prenom,p.nom].filter(Boolean).join(' ')}. L’importer dans le dossier ${deN(RC.full(e))} ?`))return;
   const old=RC.carnet(e.id);if(old&&(old.exportedAt||0)>(d.exportedAt||0)&&!confirm('Le carnet déjà enregistré est plus récent que ce fichier. Le remplacer quand même ?'))return;
   RC.saveCarnet(e.id,d);const s=crStats(d);renderDossier(e.id);toast(`Carnet importé : ${nkm(s.km)} km, ${s.n} trajet${s.n>1?'s':''}`)}
 /* ---------- carnet reçu par lien (#carnet=…) ---------- */
 async function decodeCarnet(code){const t=code.slice(1).replace(/-/g,'+').replace(/_/g,'/'),bin=atob(t+'==='.slice((t.length+3)%4)),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
-  if(code[0]==='z'){const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(u);w.close();return JSON.parse(await new Response(ds.readable).text())}
+  if(code[0]==='z'){const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(u).catch(()=>{});w.close().catch(()=>{});return JSON.parse(await new Response(ds.readable).text())}
   return JSON.parse(new TextDecoder().decode(u))}
 async function carnetFromLink(){const m=location.hash.match(/^#carnet=([zj][A-Za-z0-9_-]+)$/);if(!m)return false;history.replaceState(null,'',location.pathname);
   let d;try{d=await decodeCarnet(m[1])}catch(x){toast('Lien de carnet illisible : demandez à l’élève de le renvoyer');return false}
@@ -1111,9 +1117,9 @@ async function carnetFromLink(){const m=location.hash.match(/^#carnet=([zj][A-Za
   await carnetImportData(e,Object.assign({},d,{profil:Object.assign({},d.profil,{eleveId:e.id})}));return true}
 function pickForCarnet(who){return new Promise(res=>{const box=document.createElement('div');box.className='shm';
   const l=RC.eleves().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-  box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Carnet de route de ${esc(who)}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
+  box.innerHTML=`<div class="shm-in"><div class="shm-h"><b>Carnet de route ${esc(deN(who))}</b><button type="button" class="shm-x" data-x aria-label="Fermer">✕</button></div>
     <p class="shm-note" style="margin:0">Dans quel dossier l’ajouter ?</p>${l.slice(0,8).map(e=>`<button type="button" class="btn docpick" data-id="${esc(e.id)}"><b>${esc(RC.full(e))}</b></button>`).join('')}
-    <button type="button" class="btn primary" data-new>Créer le dossier de ${esc(who)}</button></div>`;
+    <button type="button" class="btn primary" data-new>Créer le dossier ${esc(deN(who))}</button></div>`;
   document.body.appendChild(box);const done=v=>{box.remove();res(v)};
   box.addEventListener('click',ev=>{const b=ev.target.closest('button');if(ev.target===box||(b&&b.dataset.x!=null)){done(null);return}if(!b)return;
     if(b.dataset.id)done(RC.eleve(b.dataset.id));
@@ -1158,7 +1164,7 @@ $('#view').addEventListener('click',e=>{
   if(t.closest('#cancelEdit')){editing=false;renderDossier(cur());return}
   const sb=t.closest('[data-boite] button');if(sb){sb.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===sb));return}
   if(t.closest('#delBtn')){const id=cur(),e=RC.eleve(id),d=dossier(e),n=d.ev.length+d.ex.length+d.bi.length+d.de.length+(RC.carnet(id)?1:0)+RC.signes(id).length;
-    if(!confirm(`Supprimer définitivement le dossier de ${RC.full(e)}${n?` et ses ${n} fiche${n>1?'s':''}`:''} ?`))return;
+    if(!confirm(`Supprimer définitivement le dossier ${deN(RC.full(e))}${n?` et ses ${n} fiche${n>1?'s':''}`:''} ?`))return;
     RC.deleteEleve(id);toast('Dossier supprimé');location.hash='';return}
   if(t.closest('.back')){e.preventDefault();location.hash=''}
 });
