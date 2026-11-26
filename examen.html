@@ -769,9 +769,10 @@ window.RC=(function(){
   function encMonth(b,key){const l=(b&&Array.isArray(b.enc)?b.enc:[]).filter(x=>x&&/^\d{4}-\d\d-\d\d$/.test(x.d||'')&&x.d.slice(0,7)===key).sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:0);
     const c=budgetCalc(b),ac=d=>/^\d{4}-\d\d-\d\d$/.test(b.acreFin||'')&&String(b.cotisAcre??'').trim()!==''&&d<=b.acreFin,rate=x=>num(ac(x.d)?b.cotisAcre:b.cotis);
     const ttc=l.reduce((a,x)=>a+num(x.m),0),ht=ttc/1.2,tva=ttc-ht,cot=l.reduce((a,x)=>a+num(x.m)/1.2*rate(x)/100,0),rates=[...new Set(l.map(rate))];
-    const fis=ht*num(b.fiscal)/100,F=c.F,carb=c.carbM,net=ht-cot-fis-F-carb,rr=b&&b.areRecu&&String(b.areRecu[key]??'').trim()!==''?b.areRecu[key]:null,are=rr!=null?Math.max(0,num(rr)):c.are>0?Math.max(0,c.are-c.areK*ht):0,total=net+are-c.per-c.treso;
+    const reel=o=>b&&o&&typeof o==='object'&&String(o[key]??'').trim()!==''?Math.max(0,num(o[key])):null,ur=reel(b.urssafPaye),tp=reel(b.tvaPaye);
+    const fis=ur!=null?0:ht*num(b.fiscal)/100,F=c.F,carb=c.carbM,net=ht-(ur!=null?ur:cot)-fis-F-carb,rr=b&&b.areRecu&&String(b.areRecu[key]??'').trim()!==''?b.areRecu[key]:null,are=rr!=null?Math.max(0,num(rr)):c.are>0?Math.max(0,c.are-c.areK*ht):0,total=net+are-c.per-c.treso;
     const tvaRec=(b.fixes||[]).reduce((a,f)=>a+(f.tva?num(f.m)-num(f.m)/1.2:0),0)+(b.carbTva?c.carbM*.2:0);
-    return{l,n:l.length,ttc,ht,tva,cot,rates,fis,fiscal:num(b.fiscal),F,carb,net,are,hasAre:c.are>0||rr!=null,areReel:rr!=null,per:c.per,treso:c.treso,total,tvaRec,tvaDue:tva-tvaRec}}
+    return{l,n:l.length,ttc,ht,tva,cot:ur!=null?ur:cot,cotEst:cot,urReel:ur!=null,tvaPaye:tp,tvaReel:tp!=null,rates,fis,fiscal:num(b.fiscal),F,carb,net,are,hasAre:c.are>0||rr!=null,areReel:rr!=null,per:c.per,treso:c.treso,total,tvaRec,tvaDue:tva-tvaRec}}
   function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
   const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return Number.isFinite(n)&&Math.abs(n)<1e9?n:0};
   /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */

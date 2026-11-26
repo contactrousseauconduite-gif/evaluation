@@ -344,6 +344,8 @@ label.f small{font-weight:400;font-size:.78rem;color:var(--muted)}
 .btn.small{min-height:42px;padding:8px 12px;font-size:.9rem}
 .enc .encf{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 10px;align-items:end}.enc .encf .encn{grid-column:1/-1}.enc .encf label.f{margin:0}
 @media (min-width:700px){.enc .encf{grid-template-columns:10.5rem 11rem minmax(0,1fr) auto}.enc .encf .encn{grid-column:auto}.enc .encf .btn.primary{grid-column:auto;min-width:120px}}
+.enc .reel{margin:12px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:12px}.enc .reel>small{display:block;color:var(--muted);font-size:.8rem;margin:2px 0 6px}.enc .reel>small:last-child{margin:6px 0 0}
+.enc .reelg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}.enc .reelg label.f{margin:0;font-size:.85rem}
 .encnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px}.encnav b{font-size:1.05rem;text-align:center;flex:1}.encnav .btn{min-width:46px;font-size:1.2rem}
 .enc .rt td.m{text-align:right;white-space:nowrap}.enc .rt td.n{color:var(--muted);overflow-wrap:anywhere}.enc .rt td.dt{white-space:nowrap}
 .enc .sr small{display:block;color:var(--muted);font-size:.8rem;font-weight:400}
@@ -873,9 +875,10 @@ window.RC=(function(){
   function encMonth(b,key){const l=(b&&Array.isArray(b.enc)?b.enc:[]).filter(x=>x&&/^\d{4}-\d\d-\d\d$/.test(x.d||'')&&x.d.slice(0,7)===key).sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:0);
     const c=budgetCalc(b),ac=d=>/^\d{4}-\d\d-\d\d$/.test(b.acreFin||'')&&String(b.cotisAcre??'').trim()!==''&&d<=b.acreFin,rate=x=>num(ac(x.d)?b.cotisAcre:b.cotis);
     const ttc=l.reduce((a,x)=>a+num(x.m),0),ht=ttc/1.2,tva=ttc-ht,cot=l.reduce((a,x)=>a+num(x.m)/1.2*rate(x)/100,0),rates=[...new Set(l.map(rate))];
-    const fis=ht*num(b.fiscal)/100,F=c.F,carb=c.carbM,net=ht-cot-fis-F-carb,rr=b&&b.areRecu&&String(b.areRecu[key]??'').trim()!==''?b.areRecu[key]:null,are=rr!=null?Math.max(0,num(rr)):c.are>0?Math.max(0,c.are-c.areK*ht):0,total=net+are-c.per-c.treso;
+    const reel=o=>b&&o&&typeof o==='object'&&String(o[key]??'').trim()!==''?Math.max(0,num(o[key])):null,ur=reel(b.urssafPaye),tp=reel(b.tvaPaye);
+    const fis=ur!=null?0:ht*num(b.fiscal)/100,F=c.F,carb=c.carbM,net=ht-(ur!=null?ur:cot)-fis-F-carb,rr=b&&b.areRecu&&String(b.areRecu[key]??'').trim()!==''?b.areRecu[key]:null,are=rr!=null?Math.max(0,num(rr)):c.are>0?Math.max(0,c.are-c.areK*ht):0,total=net+are-c.per-c.treso;
     const tvaRec=(b.fixes||[]).reduce((a,f)=>a+(f.tva?num(f.m)-num(f.m)/1.2:0),0)+(b.carbTva?c.carbM*.2:0);
-    return{l,n:l.length,ttc,ht,tva,cot,rates,fis,fiscal:num(b.fiscal),F,carb,net,are,hasAre:c.are>0||rr!=null,areReel:rr!=null,per:c.per,treso:c.treso,total,tvaRec,tvaDue:tva-tvaRec}}
+    return{l,n:l.length,ttc,ht,tva,cot:ur!=null?ur:cot,cotEst:cot,urReel:ur!=null,tvaPaye:tp,tvaReel:tp!=null,rates,fis,fiscal:num(b.fiscal),F,carb,net,are,hasAre:c.are>0||rr!=null,areReel:rr!=null,per:c.per,treso:c.treso,total,tvaRec,tvaDue:tva-tvaRec}}
   function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
   const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return Number.isFinite(n)&&Math.abs(n)<1e9?n:0};
   /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
@@ -1107,16 +1110,19 @@ let encKey=isoL(Date.now()).slice(0,7);
 const sg2=n=>(n<-0.004?'− ':'')+eur2(Math.abs(n));
 const moisNom=k=>{const[y,m]=k.split('-').map(Number),t=new Date(y,m-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});return t.charAt(0).toUpperCase()+t.slice(1)};
 const dCourt=d=>{const[y,m,j]=d.split('-').map(Number);return new Date(y,m-1,j).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})};
+const reelF=(id,l,o,est)=>`<label class="f">${l}<span class="suf"><input type="text" inputmode="decimal" id="${id}" value="${esc(o&&typeof o==='object'&&o[encKey]!=null?o[encKey]:'')}" placeholder="${esc(String(Math.round(est*100)/100).replace('.',','))}" autocomplete="off"><i>€</i></span></label>`;
 function encRender(){const v=$('#encV');if(!v)return;const r=RC.encMonth(B,encKey),nom=moisNom(encKey),cur=encKey===isoL(Date.now()).slice(0,7);
   const row=(l,x,cls)=>`<div class="sr ${cls||''}"><span>${l}</span><b>${x}</b></div>`;
   let h=`<div class="encnav"><button type="button" class="btn small" data-encnav="-1" aria-label="Mois précédent">‹</button><b>${esc(nom)}${cur?' <small style="font-weight:400;color:var(--muted)">(en cours)</small>':''}</b><button type="button" class="btn small" data-encnav="1" aria-label="Mois suivant">›</button></div>`;
   if(!r.n){v.innerHTML=h+`<p class="lead2">Aucun virement noté pour ${esc(nom.toLowerCase())}.</p>`;return}
   const pr=r.rates.map(x=>pct(x)).join(' puis ');
   h+=`<div class="encg"><div><table class="rt"><thead><tr><th>Reçu le</th><th>Libellé</th><th style="text-align:right">Montant</th><th></th></tr></thead><tbody>${r.l.map(x=>`<tr><td class="dt">${esc(dCourt(x.d))}</td><td class="n">${esc(x.n||'')}</td><td class="m"><b>${eur2(num0(x.m))}</b></td><td><button type="button" class="del" data-encdel="${esc(x.id)}" aria-label="Supprimer le virement du ${esc(dCourt(x.d))}">✕</button></td></tr>`).join('')}</tbody></table>
-    ${num0(B.are)>0||r.areReel?`<label class="f" style="margin:12px 0 0">Aide France Travail reçue pour ${esc(nom.toLowerCase())}<span class="suf"><input type="text" inputmode="decimal" id="areR" value="${esc(B.areRecu&&B.areRecu[encKey]!=null?B.areRecu[encKey]:'')}" placeholder="${esc(String(Math.round(r.are*100)/100).replace('.',','))}" autocomplete="off"><i>€</i></span><small>Versée début ${esc(moisNom(isoL(new Date(+encKey.slice(0,4),+encKey.slice(5)-1+1,1)).slice(0,7)).toLowerCase())}. Laissez vide pour garder l’estimation.</small></label>`:''}
-    <div class="acre on"><b>À déclarer pour ${esc(nom.toLowerCase())}</b><span>URSSAF : <b>${eur2(r.ht)}</b> de chiffre d’affaires hors TVA (prestations de services BNC).</span><span>TVA collectée : <b>${eur2(r.tva)}</b>. ${r.tvaDue>=0?`Une fois déduite la TVA de vos frais, il reste environ <b>${eur2(r.tvaDue)}</b> à reverser.`:`La TVA de vos frais est plus élevée : crédit de TVA d’environ <b>${eur2(-r.tvaDue)}</b>.`}</span></div></div>
+    <div class="reel"><b>Montants réels ${esc((n=>/^[aeiouyàâéèêîïôûù]/i.test(n)?'d’'+n:'de '+n)(nom.toLowerCase()))}</b><small>Facultatif : tapez ce que vous avez vraiment payé ou reçu, il remplace l’estimation.</small>
+      <div class="reelg">${reelF('reelU','URSSAF payée',B.urssafPaye,r.cotEst+(r.fiscal?r.ht*r.fiscal/100:0))}${reelF('reelT','TVA payée',B.tvaPaye,Math.max(0,r.tvaDue))}${num0(B.are)>0||r.areReel?reelF('areR','ARE reçue',B.areRecu,r.are):''}</div>
+      <small>L’URSSAF et la TVA d’un mois se paient le mois suivant, l’aide France Travail arrive début ${esc(moisNom(isoL(new Date(+encKey.slice(0,4),+encKey.slice(5),1)).slice(0,7)).toLowerCase())}.</small></div>
+    <div class="acre on"><b>À déclarer pour ${esc(nom.toLowerCase())}</b><span>URSSAF : <b>${eur2(r.ht)}</b> de chiffre d’affaires hors TVA (prestations de services BNC)${r.urReel?`, <b>${eur2(r.cot)}</b> payés`:''}.</span><span>TVA collectée : <b>${eur2(r.tva)}</b>. ${r.tvaReel?`TVA payée : <b>${eur2(r.tvaPaye)}</b>, soit ${eur2(Math.max(0,r.tva-r.tvaPaye))} de TVA récupérée sur vos achats.`:r.tvaDue>=0?`Une fois déduite la TVA de vos frais, il reste environ <b>${eur2(r.tvaDue)}</b> à reverser.`:`La TVA de vos frais est plus élevée : crédit de TVA d’environ <b>${eur2(-r.tvaDue)}</b>.`}</span></div></div>
     <div>${row('Reçu sur le compte, TVA comprise',eur2(r.ttc))+row('TVA comprise dedans (20 %)','− '+eur2(r.tva))+row('Chiffre d’affaires hors TVA<small>Le montant à déclarer à l’URSSAF</small>',eur2(r.ht),'tot')+
-    row(`Cotisations sociales (${pr})`,'− '+eur2(r.cot))+(r.fiscal?row(`Impôt et autres taxes (${pct(r.fiscal)})`,'− '+eur2(r.fis)):'')+row('Frais fixes du mois, hors TVA','− '+eur2(r.F))+row('Carburant, moyenne par mois hors TVA','− '+eur2(r.carb))+
+    (r.urReel?row('URSSAF payée (cotisations et contributions)','− '+eur2(r.cot)):row(`Cotisations sociales (${pr})`,'− '+eur2(r.cot)))+(r.fiscal&&!r.urReel?row(`Impôt et autres taxes (${pct(r.fiscal)})`,'− '+eur2(r.fis)):'')+row('Frais fixes du mois, hors TVA','− '+eur2(r.F))+row('Carburant, moyenne par mois hors TVA','− '+eur2(r.carb))+
     row('Il vous reste de votre activité',sg2(r.net),'tot'+(r.net<0?' neg':''))+
     (r.hasAre?row(r.areReel?'Aide France Travail (ARE) reçue':'Aide France Travail (ARE) estimée','+ '+eur2(r.are)):'')+(r.per?row('Épargne retraite (PER)','− '+eur2(r.per)):'')+(r.treso?row('Trésorerie de l’entreprise','− '+eur2(r.treso)):'')+
     (r.hasAre||r.per||r.treso?row('Il vous reste au total',sg2(r.total),'tot'+(r.total<0?' neg':'')):'')}</div></div>
@@ -1147,8 +1153,9 @@ $('#view').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   const r=b.closest('.fr');if(!r)return;const l=B.fixes.find(x=>x.id===r.dataset.id);if(!l)return;
   if(b.dataset.f==='tva'){l.tva=!l.tva;b.textContent=l.tva?'avec TVA':'sans TVA';b.setAttribute('aria-pressed',l.tva);touched();return}
   if(b.dataset.f==='del'){if((l.n||l.m)&&!confirm(`Supprimer « ${l.n||'ce frais'} » ?`))return;B.fixes=B.fixes.filter(x=>x!==l);r.remove();touched()}});
-$('#view').addEventListener('change',e=>{if(e.target.id==='areR'){const v=e.target.value.trim();if(!B.areRecu||typeof B.areRecu!=='object')B.areRecu={};if(v==='')delete B.areRecu[encKey];else B.areRecu[encKey]=v;save();update()}});
-$('#view').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='areR'){e.preventDefault();e.target.blur();return}if(e.key==='Enter'&&(e.target.id==='encM'||e.target.id==='encN')){e.preventDefault();encAdd()}});
+const REEL={areR:'areRecu',reelU:'urssafPaye',reelT:'tvaPaye'};
+$('#view').addEventListener('change',e=>{const k=REEL[e.target.id];if(k){const v=e.target.value.trim();if(!B[k]||typeof B[k]!=='object')B[k]={};if(v==='')delete B[k][encKey];else B[k][encKey]=v;save();update()}});
+$('#view').addEventListener('keydown',e=>{if(e.key==='Enter'&&REEL[e.target.id]){e.preventDefault();e.target.blur();return}if(e.key==='Enter'&&(e.target.id==='encM'||e.target.id==='encN')){e.preventDefault();encAdd()}});
 render();RC.check();
 })();
 </script>
