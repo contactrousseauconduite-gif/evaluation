@@ -342,6 +342,13 @@ label.f small{font-weight:400;font-size:.78rem;color:var(--muted)}
 .fr .del{background:none;border:0;color:var(--muted);cursor:pointer;min-height:46px;font-size:1rem}
 .frt{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 .btn.small{min-height:42px;padding:8px 12px;font-size:.9rem}
+.enc .encf{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 10px;align-items:end}.enc .encf .encn{grid-column:1/-1}.enc .encf label.f{margin:0}
+@media (min-width:700px){.enc .encf{grid-template-columns:10.5rem 11rem minmax(0,1fr) auto}.enc .encf .encn{grid-column:auto}.enc .encf .btn.primary{grid-column:auto;min-width:120px}}
+.encnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px}.encnav b{font-size:1.05rem;text-align:center;flex:1}.encnav .btn{min-width:46px;font-size:1.2rem}
+.enc .rt td.m{text-align:right;white-space:nowrap}.enc .rt td.n{color:var(--muted);overflow-wrap:anywhere}.enc .rt td.dt{white-space:nowrap}
+.enc .sr small{display:block;color:var(--muted);font-size:.8rem;font-weight:400}
+@media (min-width:1000px){.encg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}}
+
 .chk{display:flex;align-items:center;gap:10px;background:none;border:0;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;padding:10px 0 0;text-align:left}
 .chk .box{flex:none;width:24px;height:24px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;color:#fff}
 .chk[aria-pressed="true"] .box{background:var(--navy);border-color:var(--navy)}.chk[aria-pressed="true"] .box::before{content:"✓"}
@@ -615,7 +622,6 @@ window.RC=(function(){
   const pages=(b,n,pad)=>Array.from({length:n},(_,i)=>`${b}-${pad?String(i+1).padStart(2,'0'):i+1}.jpg`);
   const DOCS=[{url:'presentation-rousseau-conduite-v3.pdf',title:'Présentation et inscription',sub:'3 pages : qui je suis, les 5 étapes pour s’inscrire, les infos pratiques',jpg:pages('presentation-v3-page',3),
      text:'Bonjour,\n\nComme convenu au téléphone, voici ma présentation et les étapes pour vous inscrire. Vous y trouverez aussi les points de rendez-vous et les liens utiles.\n\nN’hésitez pas à me contacter si vous avez la moindre question.\n\nFabien\nRousseau Conduite'},
-    {url:'memo-verifications-premiers-secours-v2.pdf',title:'Mémo vérifications et premiers secours',sub:'2 pages, l’essentiel à retenir',jpg:pages('memo-v2-page',2)},
     {url:'les-100-questions-v2.pdf',title:'Les 100 questions de vérification',sub:'11 pages, toutes les séries avec leurs réponses',jpg:pages('questions-v2-page',11,true)},
     {url:'vos-donnees-personnelles.pdf',title:'Vos données personnelles',sub:'1 page, à faire signer lors de l’évaluation de départ',jpg:pages('donnees-page',1),sign:true},
     {url:'parrainage-vjtz-v3.pdf',title:'Code parrainage VJTZ',sub:'Jusqu’à 100 € de réduction sur le permis',jpg:['parrainage-vjtz-v3.jpg'],
@@ -863,6 +869,13 @@ window.RC=(function(){
   /* ACRE : taux réduit jusqu'à la date de fin incluse, puis taux normal */
   const acreOn=(b,d)=>/^\d{4}-\d\d-\d\d$/.test(b.acreFin||'')&&String(b.cotisAcre??'').trim()!==''&&iso(d||Date.now())<=b.acreFin;
   const cotisEff=(b,o)=>num((o&&o.acre!=null?o.acre:acreOn(b))&&b.cotisAcre!=null&&b.cotisAcre!==''?b.cotisAcre:b.cotis);
+  /* encaissements réels : virements reçus (TVA comprise), rangés au mois où ils arrivent sur le compte */
+  function encMonth(b,key){const l=(b&&Array.isArray(b.enc)?b.enc:[]).filter(x=>x&&/^\d{4}-\d\d-\d\d$/.test(x.d||'')&&x.d.slice(0,7)===key).sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:0);
+    const c=budgetCalc(b),ac=d=>/^\d{4}-\d\d-\d\d$/.test(b.acreFin||'')&&String(b.cotisAcre??'').trim()!==''&&d<=b.acreFin,rate=x=>num(ac(x.d)?b.cotisAcre:b.cotis);
+    const ttc=l.reduce((a,x)=>a+num(x.m),0),ht=ttc/1.2,tva=ttc-ht,cot=l.reduce((a,x)=>a+num(x.m)/1.2*rate(x)/100,0),rates=[...new Set(l.map(rate))];
+    const fis=ht*num(b.fiscal)/100,F=c.F,carb=c.carbM,net=ht-cot-fis-F-carb,are=c.are>0?Math.max(0,c.are-.7*(1-.34)*ht):0,total=net+are-c.per-c.treso;
+    const tvaRec=(b.fixes||[]).reduce((a,f)=>a+(f.tva?num(f.m)-num(f.m)/1.2:0),0)+(b.carbTva?c.carbM*.2:0);
+    return{l,n:l.length,ttc,ht,tva,cot,rates,fis,fiscal:num(b.fiscal),F,carb,net,are,hasAre:c.are>0,per:c.per,treso:c.treso,total,tvaRec,tvaDue:tva-tvaRec}}
   function budgetSave(o){o.v=1;o.updatedAt=Date.now();set(K.bu,JSON.stringify(o))}
   const num=v=>{const n=parseFloat(String(v??'').replace(',','.').replace(/\s/g,''));return Number.isFinite(n)&&Math.abs(n)<1e9?n:0};
   /* montant hors TVA d'une ligne de frais (TVA de 20 % récupérée si la ligne est saisie TTC) */
@@ -909,7 +922,7 @@ window.RC=(function(){
     const left=(s1-dayOf(last.date))/30.44;r.monthsLeft=left;r.needPerMonth=left>0?Math.max(0,(allow-r.used)/left):null;
     const lastDay=dayOf(last.date),t=dayOf(today);r.daysSince=t-lastDay;r.due=last.date.slice(0,7)<today.slice(0,7)||r.daysSince>=30;return r}
   syncAll();try{syncHeures()}catch(e){}
-  return{num,budget,budgetSave,budgetCalc,monthHours,fraisHT,veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
+  return{num,budget,budgetSave,budgetCalc,encMonth,monthHours,fraisHT,veh,vehSave,vehStats,backup,restore,check,lastText,setToast:f=>{toast=f},
     eleves,eleve,link,addEleve,updateEleve,deleteEleve,deleteRecord,carnet,saveCarnet,syncHeures,heures,toggleLecon,jpegPdf,signe,signes,signDonnees,viewSigned,dpBlock,dpRemind,sendSigned,signedJpeg,signedPdf,recordsOf,full,norm,fr,FIELDS,pickerHTML,
     setPicker:(p,c)=>{onPick=p;onClear=c},T,openShare,fichePdf,ficheJpeg,shareDoc,downloadDoc,shareImages,pickFormat,downloadFiche,fileName,downloadFile,shareText,shareFile,DOCS,frDate:iso=>{if(!iso)return '';const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`}};
 })();
@@ -944,6 +957,13 @@ function fixesHTML(){return B.fixes.map(l=>`<div class="fr" data-id="${l.id}">
 function render(){
   $('#view').innerHTML=`<h1 class="ph">Mon budget<span>Combien d’heures pour couvrir vos frais et atteindre votre objectif</span></h1>
   ${B.exemple?`<div class="due"><b>Ces chiffres sont des exemples.</b><span>Remplacez-les par vos vrais montants : les résultats se recalculent tout seuls.</span></div>`:''}
+  <section class="block enc" id="enc"><h2 class="pill">Ce que je touche</h2>
+    <p class="lead2">Notez chaque virement reçu sur votre compte professionnel, TVA comprise, à la date où il arrive. C’est cette date qui compte pour l’URSSAF : un virement reçu le 1<sup>er</sup> décembre compte en décembre, même s’il paie des leçons de novembre.</p>
+    <div class="encf"><label class="f">Date du virement<input type="date" id="encD" value="${isoL(Date.now())}"></label>
+      <label class="f">Montant reçu (TTC)<span class="suf"><input type="text" inputmode="decimal" id="encM" placeholder="0" autocomplete="off"><i>€</i></span></label>
+      <label class="f encn">Libellé (facultatif)<input type="text" id="encN" placeholder="Ex. facture n°7" maxlength="60" autocomplete="off"></label>
+      <button type="button" class="btn primary" id="encAdd">Ajouter</button></div>
+    <div id="encV"></div></section>
   <div class="bgrid"><div>
     <section class="block"><h2 class="pill">Ce que je gagne</h2><div class="grid">
       ${inp('taux','Par heure de leçon (TVA comprise)','€','Le montant TTC de vos factures. La page retire la TVA de 20 % : <b id="tauxHT"></b> hors TVA.')}
@@ -1074,7 +1094,39 @@ function update(){const c=RC.budgetCalc(B),WK=c.WK,cA=c.acre?RC.budgetCalc(B,{ac
    $('#scen').innerHTML=`<thead><tr><th>Heures par semaine</th><th>Il vous reste${cA?'<small>aujourd’hui</small>':''}</th>${cA?`<th>Il vous restera<small>dès ${esc(quand)}</small></th>`:''}</tr></thead><tbody>${[15,20,25,30,35,40].map(h=>{const x=c.at(h*WK),y=cA?cA.at(h*WK):null;
      return `<tr><td><b>${h} h</b><small>${hh(h*WK)} par mois · ${eur(x.ca)} facturés hors TVA</small></td>${cell(x.total)}${y?cell(y.total,'fut'):''}</tr>`}).join('')}</tbody>`;
    const parts=['vos frais','vos cotisations'];if(num0(B.fiscal))parts.push('l’impôt');if(c.per)parts.push('l’épargne retraite');if(c.treso)parts.push('la trésorerie');
-   $('#scenNote').innerHTML=`Calcul : ce que vous facturez hors TVA, moins ${parts.slice(0,-1).join(', ')} et ${parts[parts.length-1]}${c.are?', plus l’aide France Travail':''}. ${obj>0?`<span class="okc">En vert</span> : votre objectif de ${eur(obj)} est atteint. `:''}<span class="over">En rouge</span> : vous perdez de l’argent.${cA?` La colonne de droite tient compte de la fin de l’ACRE (cotisations à ${pct(cA.cotis)}).`:''}`}}
+   encRender();$('#scenNote').innerHTML=`Calcul : ce que vous facturez hors TVA, moins ${parts.slice(0,-1).join(', ')} et ${parts[parts.length-1]}${c.are?', plus l’aide France Travail':''}. ${obj>0?`<span class="okc">En vert</span> : votre objectif de ${eur(obj)} est atteint. `:''}<span class="over">En rouge</span> : vous perdez de l’argent.${cA?` La colonne de droite tient compte de la fin de l’ACRE (cotisations à ${pct(cA.cotis)}).`:''}`}}
+
+/* ce que je touche : virements réels du mois */
+const isoL=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+let encKey=isoL(Date.now()).slice(0,7);
+const sg2=n=>(n<-0.004?'− ':'')+eur2(Math.abs(n));
+const moisNom=k=>{const[y,m]=k.split('-').map(Number),t=new Date(y,m-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});return t.charAt(0).toUpperCase()+t.slice(1)};
+const dCourt=d=>{const[y,m,j]=d.split('-').map(Number);return new Date(y,m-1,j).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})};
+function encRender(){const v=$('#encV');if(!v)return;const r=RC.encMonth(B,encKey),nom=moisNom(encKey),cur=encKey===isoL(Date.now()).slice(0,7);
+  const row=(l,x,cls)=>`<div class="sr ${cls||''}"><span>${l}</span><b>${x}</b></div>`;
+  let h=`<div class="encnav"><button type="button" class="btn small" data-encnav="-1" aria-label="Mois précédent">‹</button><b>${esc(nom)}${cur?' <small style="font-weight:400;color:var(--muted)">(en cours)</small>':''}</b><button type="button" class="btn small" data-encnav="1" aria-label="Mois suivant">›</button></div>`;
+  if(!r.n){v.innerHTML=h+`<p class="lead2">Aucun virement noté pour ${esc(nom.toLowerCase())}.</p>`;return}
+  const pr=r.rates.map(x=>pct(x)).join(' puis ');
+  h+=`<div class="encg"><div><table class="rt"><thead><tr><th>Reçu le</th><th>Libellé</th><th style="text-align:right">Montant</th><th></th></tr></thead><tbody>${r.l.map(x=>`<tr><td class="dt">${esc(dCourt(x.d))}</td><td class="n">${esc(x.n||'')}</td><td class="m"><b>${eur2(num0(x.m))}</b></td><td><button type="button" class="del" data-encdel="${esc(x.id)}" aria-label="Supprimer le virement du ${esc(dCourt(x.d))}">✕</button></td></tr>`).join('')}</tbody></table>
+    <div class="acre on"><b>À déclarer pour ${esc(nom.toLowerCase())}</b><span>URSSAF : <b>${eur2(r.ht)}</b> de chiffre d’affaires hors TVA (prestations de services BNC).</span><span>TVA collectée : <b>${eur2(r.tva)}</b>. ${r.tvaDue>=0?`Une fois déduite la TVA de vos frais, il reste environ <b>${eur2(r.tvaDue)}</b> à reverser.`:`La TVA de vos frais est plus élevée : crédit de TVA d’environ <b>${eur2(-r.tvaDue)}</b>.`}</span></div></div>
+    <div>${row('Reçu sur le compte, TVA comprise',eur2(r.ttc))+row('TVA comprise dedans (20 %)','− '+eur2(r.tva))+row('Chiffre d’affaires hors TVA<small>Le montant à déclarer à l’URSSAF</small>',eur2(r.ht),'tot')+
+    row(`Cotisations sociales (${pr})`,'− '+eur2(r.cot))+(r.fiscal?row(`Impôt et autres taxes (${pct(r.fiscal)})`,'− '+eur2(r.fis)):'')+row('Frais fixes du mois, hors TVA','− '+eur2(r.F))+row('Carburant, moyenne par mois hors TVA','− '+eur2(r.carb))+
+    row('Il vous reste de votre activité',sg2(r.net),'tot'+(r.net<0?' neg':''))+
+    (r.hasAre?row('Aide France Travail (ARE) estimée','+ '+eur2(r.are)):'')+(r.per?row('Épargne retraite (PER)','− '+eur2(r.per)):'')+(r.treso?row('Trésorerie de l’entreprise','− '+eur2(r.treso)):'')+
+    (r.hasAre||r.per||r.treso?row('Il vous reste au total',sg2(r.total),'tot'+(r.total<0?' neg':'')):'')}</div></div>
+    <p class="lead2" style="margin:10px 0 0">Les frais fixes, le carburant, l’épargne retraite et la trésorerie sont ceux renseignés plus bas, comptés pour un mois entier.${cur?' Le mois n’est pas fini : le reste augmentera avec les prochains virements.':''}${r.hasAre?' L’aide France Travail est une estimation : votre conseiller confirme le montant.':''}</p>`;
+  v.innerHTML=h}
+function encAdd(){const d=$('#encD').value,m=$('#encM').value.trim(),n=$('#encN').value.trim(),x=num0(m);
+  if(!/^\d{4}-\d\d-\d\d$/.test(d)){toast('Indiquez la date du virement');$('#encD').focus();return}
+  if(!(x>0)){toast('Indiquez le montant reçu');$('#encM').focus();return}
+  if(!Array.isArray(B.enc))B.enc=[];B.enc.push({id:'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),d,m:String(Math.round(x*100)/100),n});
+  encKey=d.slice(0,7);$('#encM').value='';$('#encN').value='';save();encRender();toast(`Virement de ${eur2(x)} ajouté en ${moisNom(encKey).toLowerCase()}`)}
+function encClick(b){
+  if(b.id==='encAdd'){encAdd();return true}
+  if(b.dataset.encnav){const[y,m]=encKey.split('-').map(Number),t=new Date(y,m-1+(+b.dataset.encnav),1);encKey=isoL(t).slice(0,7);encRender();return true}
+  if(b.dataset.encdel){const x=(B.enc||[]).find(e=>e.id===b.dataset.encdel);if(!x)return true;
+    if(!confirm(`Supprimer le virement de ${eur2(num0(x.m))} reçu le ${dCourt(x.d)} ?`))return true;B.enc=B.enc.filter(e=>e!==x);save();encRender();return true}
+  return false}
 
 const touched=()=>{if(B.exemple){B.exemple=false;const d=document.querySelector('.due');if(d)d.remove()}save();update()};
 $('#view').addEventListener('input',e=>{const t=e.target;
@@ -1083,11 +1135,13 @@ $('#view').addEventListener('input',e=>{const t=e.target;
   if(t.id==='moisDone'){B.mois={key:RC.monthHours().key,done:t.value};save();update();return}
   const r=t.closest('.fr');if(r&&t.dataset.f){const l=B.fixes.find(x=>x.id===r.dataset.id);if(l){l[t.dataset.f]=t.value;touched()}}});
 $('#view').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(encClick(b))return;
   if(b.id==='addF'){B.fixes.push({id:newId(),n:'',m:'',tva:true});$('#fixes').innerHTML=fixesHTML();const n=$('#fixes .fr:last-child .fn');if(n)n.focus();touched();return}
   if(b.id==='carbTva'){B.carbTva=!B.carbTva;b.setAttribute('aria-pressed',B.carbTva);touched();return}
   const r=b.closest('.fr');if(!r)return;const l=B.fixes.find(x=>x.id===r.dataset.id);if(!l)return;
   if(b.dataset.f==='tva'){l.tva=!l.tva;b.textContent=l.tva?'avec TVA':'sans TVA';b.setAttribute('aria-pressed',l.tva);touched();return}
   if(b.dataset.f==='del'){if((l.n||l.m)&&!confirm(`Supprimer « ${l.n||'ce frais'} » ?`))return;B.fixes=B.fixes.filter(x=>x!==l);r.remove();touched()}});
+$('#view').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='encM'||e.target.id==='encN')){e.preventDefault();encAdd()}});
 render();RC.check();
 })();
 </script>
