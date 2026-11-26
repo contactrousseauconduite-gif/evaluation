@@ -362,7 +362,7 @@ a.card{text-decoration:none;color:inherit}
 .shm-att span:last-child{display:flex;flex-direction:column}.shm-att small{color:var(--muted);font-size:.8rem}
 
 /* accueil allégé */
-.tiles2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.tiles2{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 18px}.tiles2>.tile2{grid-column:span 2}.tiles2>.tile2:nth-last-child(-n+2){grid-column:span 3}
 .tile2{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;text-decoration:none;color:var(--ink);min-height:112px}
 .tile2:active{transform:scale(.98)}
 .tile2 .ic{width:42px;height:42px;border-radius:12px;background:var(--navy);display:grid;place-items:center}
@@ -409,19 +409,17 @@ a.card{text-decoration:none;color:inherit}
   <a class="tile2" href="bilan.html"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6M10 20V9M14 20v-8M18 20V5"/></svg></span><b>Bilan de compétences</b><em id="nBi"></em></a>
   <a class="tile2" href="examen.html"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg></span><b>Examen blanc</b><em id="nEx"></em></a>
   <a class="tile2" href="eleves.html"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 5.4"/></svg></span><b>Élèves</b><em id="nEl"></em></a>
-  <a class="tile2" href="tableau.html"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/><path d="M3 22h18"/></svg></span><b>Tableau</b><em id="nDe"></em></a>
   <a class="tile2" href="questions.html"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></span><b>Les 100 questions</b><em></em></a>
 </div>
 <section id="recent"></section>
 </div><div class="colB">
 <section class="docs"><h2 class="h2">Documents pour les élèves</h2><div class="block list" id="docs"></div></section>
 <section id="veh"></section>
-<section id="bud"></section>
 <section class="block save2"><div class="sv-t"><b>Sauvegarde</b><span data-bk-last></span></div>
   <div class="sv-a"><button type="button" class="btn go" data-bk-now><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l6 10-4 7H6l-4-7z"/><path d="M8 3l6 10h8M2 13h12l-4 7"/></svg>Sauvegarder dans Drive</button><button type="button" class="btn quiet more" id="svMore" aria-label="Autres options de sauvegarde">⋯</button></div>
   <input type="file" accept=".json,.txt,application/json,text/plain" id="restoreFile" hidden></section>
 </div></div>
-<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 77</p>
+<p style="text-align:center;color:var(--muted);font-size:.75rem;margin:16px 0 0">Version 78</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -966,7 +964,7 @@ function render(){
   $('#nEv').textContent=ev.length?plural(ev.length,'évaluation enregistrée','évaluations enregistrées'):'';
   $('#nEx').textContent=ex.length?plural(ex.length,'examen blanc enregistré','examens blancs enregistrés'):'';
   $('#nBi').textContent=bi.length?plural(bi.length,'bilan enregistré','bilans enregistrés'):'';
-  const de=get('rc:dessins')||[];$('#nDe').textContent=de.length?plural(de.length,'schéma enregistré','schémas enregistrés'):'';
+  
   $('#nEl').textContent=el.length?plural(el.length,'élève suivi','élèves suivis'):'';
 
   /* fiche commencée mais pas enregistrée */
@@ -991,17 +989,6 @@ function render(){
       <div class="vbar" role="img" aria-label="${nkm(s.used)} km parcourus sur ${nkm(s.allow)}"><i style="width:${Math.min(100,s.used/s.allow*100)}%"></i><span class="mark" style="left:${Math.min(100,s.expAt(today)/s.allow*100)}%" title="Prévu à ce jour"></span></div>
       <div class="vl"><span><b>${nkm(s.used)}</b> / ${nkm(s.allow)} km</span>${s.last?(s.due?'<span class="due">Relevé du mois à faire</span>':`<span>Relevé le ${frDate(s.last.date)}</span>`):'<span class="due">Premier relevé à faire</span>'}</div>
       <div class="vact"><a class="btn go" href="vehicule.html#releve">Relever le compteur</a><a class="btn quiet" href="vehicule.html">Détails</a></div></div>`}
-  /* budget */
-  window.renderBud=function(){const b=RC.budget(),EU='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 6.5A6.5 6.5 0 1 0 17 17.5M4 10h9M4 14h9"/></svg>',hh=n=>String(Math.round(n*10)/10).replace('.',',')+' h';
-   if(!b||b.exemple)$('#bud').innerHTML=`<a class="vw" href="budget.html"><span class="vic">${EU}</span><span class="vt"><b>Mon budget</b><span>Combien d’heures pour couvrir vos frais</span></span></a>`;
-   else{const c=RC.budgetCalc(b),M=RC.monthHours(),ov=b.mois&&b.mois.key===M.key&&b.mois.done!==''&&b.mois.done!=null?RC.num(b.mois.done):NaN,done=isNaN(ov)?M.done:ov,tot=done+M.plan,oM=c.objM??c.objH;
-    const ok=c.marge>0,st=!ok?['!','À vérifier','warn']:tot>=oM?['✓','Objectif atteint','ok']:tot>=c.seuilH?['✓','Frais couverts','ok']:['•','En cours','none'];
-    $('#bud').innerHTML=`<div class="vbox"><div class="vh"><b><span class="vic">${EU}</span>Mon budget, ce mois-ci</b><span class="vst ${st[2]}"><i aria-hidden="true">${st[0]}</i>${st[1]}</span></div>
-      ${ok?`<div class="vbar" role="img" aria-label="${hh(tot)} faites ou prévues, frais couverts à ${hh(c.seuilH)}"><i style="width:${Math.min(100,tot/Math.max(oM,c.seuilH,tot,1)*100)}%"></i><span class="mark" style="left:${Math.min(100,c.seuilH/Math.max(oM,c.seuilH,tot,1)*100)}%" title="Frais couverts"></span></div>
-      <div class="vl"><span><b>${hh(tot)}</b> faites ou prévues</span><span>Frais couverts à ${hh(c.seuilH)} · objectif ${hh(oM)}</span></div>`:''}
-      ${(()=>{const d=new Date(),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),r=RC.encMonth(b,k);if(!r.n)return'';const e=n=>String(Math.round(n).toLocaleString('fr-FR')).replace(/[\u202f\u00a0]/g,' ')+' €';
-        return `<div class="vl"><span>Reçu ce mois : <b>${e(r.ttc)}</b> TVA comprise</span><span>À déclarer : ${e(r.ht)} · il vous reste <b>${r.total<0?'− ':''}${e(Math.abs(r.total))}</b></span></div>`})()}
-      <div class="vact"><a class="btn quiet" href="budget.html">Voir mon budget</a></div></div>`}};renderBud();
   RC.check();
 }
 $('#docs').innerHTML=RC.DOCS.map((d,i)=>`<div class="doc2"><div class="dt"><b>${esc(d.title)}</b><span>${esc(d.sub)}</span></div>${d.sign?`<button type="button" class="btn" data-doc-sign>Faire signer</button>`:''}<button type="button" class="btn go" data-doc-share="${i}">Envoyer</button><button type="button" class="btn quiet more" data-doc-more="${i}" aria-label="Autres actions pour ${esc(d.title)}">⋯</button></div>`).join('');
@@ -1069,7 +1056,7 @@ let busy=false;
 async function refresh(silent){const url=get(K_URL);if(!url||busy)return;if(!navigator.onLine){render();return}busy=true;render();
   try{const txt=await fetchICS(url);set(K_DATA,txt);set(K_AT,String(Date.now()))}
   catch(e){if(!silent)toastL(e.code==='format'?'Le lien ne renvoie pas un agenda':'Impossible de lire l’agenda pour le moment')}
-  finally{busy=false;render();if(window.renderBud)try{renderBud()}catch(e){}}}
+  finally{busy=false;render()}}
 function toastL(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('on');clearTimeout(window.__tl);window.__tl=setTimeout(()=>t.classList.remove('on'),2800)}
 
 /* ---------- affichage ---------- */

@@ -976,10 +976,6 @@ function renderDossier(id){
     `<p class="empty2">Pas encore d’examen blanc.</p>`}
   </section>
   ${carnetSection(e)}
-  <section class="block"><div class="sch-h"><h2 class="pill">Schémas</h2><a class="linkbtn" href="tableau.html?eleve=${esc(e.id)}">Nouveau schéma</a></div>
-    ${d.de.length?`<div class="schg">${[...d.de].reverse().map(x=>`<div class="schw"><a class="scht" href="tableau.html?open=${esc(x.id)}"><img src="${x.thumb}" alt=""><b>${esc(x.title||'Schéma')}</b><small>${esc(frDate(x.date))}</small></a><button type="button" class="rdel ov" data-rdel="de:${esc(x.id)}" aria-label="Supprimer le schéma ${esc(x.title||'')}">✕</button></div>`).join('')}</div>`:
-    `<p class="empty2">Pas encore de schéma. Dessinez-en un sur le tableau et enregistrez-le dans ce dossier.</p>`}
-  </section>
   <button type="button" class="danger" id="delBtn">Supprimer le dossier ${esc(deN(RC.full(e)))}</button>`;
   if(d.ex.length)drawChart(d.ex);
 }
